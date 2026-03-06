@@ -826,10 +826,14 @@ class MacroManage {
 
     async sendNotifications(event) {
         const results = [];
+        console.log('🔔 Sending notifications for event:', event.title);
+        console.log('📧 API URL:', this.API_URL);
+        console.log('👥 Friends to notify:', event.friends);
         
         for (const friend of event.friends || []) {
             if (friend.type === 'email') {
                 try {
+                    console.log('📤 Sending email to:', friend.contact);
                     const emailRes = await fetch(`${this.API_URL}/api/send-email`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -845,10 +849,14 @@ class MacroManage {
                             body: `You've been invited to ${event.title}!`
                         })
                     });
+                    console.log('📨 Response status:', emailRes.status);
                     const emailData = await emailRes.json();
+                    console.log('📬 Email result:', emailData);
                     results.push({ success: emailData.success });
                 } catch (e) {
-                    results.push({ success: false });
+                    console.error('❌ Email send error:', e);
+                    console.error('Error details:', e.message);
+                    results.push({ success: false, error: e.message });
                 }
             }
         }
