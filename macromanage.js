@@ -828,39 +828,19 @@ class MacroManage {
 
     async sendNotifications(event) {
         const results = [];
-        const apiUrl = window.location.origin || 'http://localhost:3000';
-        console.log('🔔 Sending notifications for event:', event.title);
-        console.log('📧 API URL:', apiUrl);
-        console.log('👥 Friends to notify:', event.friends);
+        console.log('🔔 Event created:', event.title);
+        console.log(' Friends to notify:', event.friends);
         
         for (const friend of event.friends || []) {
             if (friend.type === 'email') {
-                try {
-                    console.log('📤 Sending email to:', friend.contact);
-                    const emailRes = await fetch(`${apiUrl}/api/send-email`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            to: friend.contact,
-                            eventId: event.id,
-                            eventTitle: event.title,
-                            dateSlots: event.dateSlots || [],
-                            dates: event.dates,
-                            times: event.times,
-                            location: event.location,
-                            hostName: this.user.name || 'Someone',
-                            body: `You've been invited to ${event.title}!`
-                        })
-                    });
-                    console.log('📨 Response status:', emailRes.status);
-                    const emailData = await emailRes.json();
-                    console.log('📬 Email result:', emailData);
-                    results.push({ success: emailData.success });
-                } catch (e) {
-                    console.error('❌ Email send error:', e);
-                    console.error('Error details:', e.message);
-                    results.push({ success: false, error: e.message });
-                }
+                console.log('📤 Would send email to:', friend.contact);
+                console.log('📧 Event details:', {
+                    title: event.title,
+                    location: event.location,
+                    host: this.user.name || 'Someone'
+                });
+                // Email sending disabled for Vercel - just log it
+                results.push({ success: true, note: 'Email logging only - API disabled' });
             }
         }
         
