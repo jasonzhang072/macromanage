@@ -836,27 +836,20 @@ class MacroManage {
                 try {
                     console.log('📤 Sending email to:', friend.contact);
                     
-                    // Use EmailJS for client-side email sending
-                    const emailData = {
-                        service_id: 'service_default',
-                        template_id: 'template_default',
-                        user_id: 'YOUR_PUBLIC_KEY',
-                        template_params: {
-                            to_email: friend.contact,
-                            event_title: event.title,
-                            location: event.location || 'TBD',
-                            host: this.user.name || 'Someone',
-                            event_id: event.id,
-                            reply_to: 'jasonzhang072@gmail.com'
-                        }
-                    };
-                    
-                    const emailRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                    const emailRes = await fetch(`${window.location.origin}/api/send-email`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(emailData)
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: friend.contact,
+                            eventId: event.id,
+                            eventTitle: event.title,
+                            dateSlots: event.dateSlots || [],
+                            dates: event.dates,
+                            times: event.times,
+                            location: event.location,
+                            hostName: this.user.name || 'Someone',
+                            body: `You've been invited to ${event.title}!`
+                        })
                     });
                     
                     console.log('📨 Email sent successfully to:', friend.contact);

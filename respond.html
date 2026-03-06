@@ -50,8 +50,11 @@
             const isAccept = response === 'accept';
 
             try {
-                // API call removed - just show success UI
-                console.log('Response recorded:', { eventId, email, response });
+                await fetch(`${window.location.origin}/api/update-response`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_id: eventId, email: email, response: response })
+                });
             } catch (e) {
                 // Still show success UI even if backend is unreachable
             }
