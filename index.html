@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MacroManage - Preserve Human Connection</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        beige: { 50: '#FFFBF5', 100: '#FDF6E9', 200: '#F5EBD8', 300: '#EDE0C8', 400: '#E5D5B8' },
+                        brown: { 400: '#C4A882', 500: '#B8956E', 600: '#9A7B5A', 700: '#7D6245', 800: '#604A32' }
+                    },
+                    fontFamily: {
+                        sans: ['DM Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-font-smoothing: antialiased; }
+        body { background: #FDF6E9; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(154, 123, 90, 0.08); }
+        .nav-box { transition: all 0.2s; background: white; color: #7D6245; }
+        .nav-box.active { background: #B8956E; color: white; }
+        .nav-box:hover { background: #F5EBD8; }
+        .btn-primary { background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%); color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-secondary { background: #F5EBD8; color: #7D6245; padding: 12px 24px; border-radius: 30px; font-weight: 600; transition: all 0.2s; }
+        .btn-secondary:hover { background: #EDE0C8; }
+        .input-field { width: 100%; padding: 12px 16px; border: 2px solid #F5EBD8; border-radius: 12px; outline: none; transition: all 0.2s; }
+        .input-field:focus { border-color: #B8956E; }
+        .date-pill, .time-pill { transition: all 0.15s; cursor: pointer; }
+        .date-pill:hover, .time-pill:hover { transform: scale(1.05); }
+        .tab-content { animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen" style="background: #FDF6E9;">
+    <!-- Top Header -->
+    <div class="flex justify-between items-center px-6 py-4 bg-white">
+        <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-full bg-brown-500 flex items-center justify-center text-white font-bold">M</div>
+            <span class="text-lg font-semibold text-brown-700">MacroManage</span>
+        </div>
+        <div class="text-2xl cursor-pointer">🔔</div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="flex justify-center gap-2 px-6 py-4 bg-white border-b border-beige-200">
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="dashboard" onclick="app.navigate('dashboard')">Dashboard</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="events" onclick="app.navigate('events')">Events</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="create" onclick="app.navigate('create')">Create</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="insights" onclick="app.navigate('insights')">Insights</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="profile" onclick="app.navigate('profile')">Profile</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="team" onclick="app.navigate('team')">Team</button>
+    </div>
+
+    <!-- Banner -->
+    <div class="bg-brown-500 text-white text-center py-3">
+        <p class="text-sm font-medium">Preserve Human Connection</p>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-6 py-6">
+
+        <!-- Main Content -->
+        <div id="app"></div>
+    </div>
+
+    <script src="macromanage.js"></script>
+</body>
+</html>

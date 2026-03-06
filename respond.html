@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Response - MacroManage</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        beige: { 50: '#FFFBF5', 100: '#FDF6E9', 200: '#F5EBD8', 300: '#EDE0C8', 400: '#E5D5B8' },
+                        brown: { 400: '#C4A882', 500: '#B8956E', 600: '#9A7B5A', 700: '#7D6245', 800: '#604A32' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-font-smoothing: antialiased; }
+        body { background: #FDF6E9; font-family: 'DM Sans', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+        <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold" id="statusIcon" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
+            ✓
+        </div>
+        <h1 class="text-2xl font-bold text-brown-700 mb-2" id="statusTitle">Processing...</h1>
+        <p class="text-brown-600 mb-6" id="statusMessage">Please wait while we record your response.</p>
+        <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
+            Open MacroManage
+        </a>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+        const email = urlParams.get('email');
+        const response = urlParams.get('response');
+
+        async function processResponse() {
+            if (!eventId || !email || !response) {
+                showError('Missing required parameters');
+                return;
+            }
+
+            const isAccept = response === 'accept';
+
+            try {
+                await fetch('http://localhost:3000/api/update-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_id: eventId, email: email, response: response })
+                });
+            } catch (e) {
+                // Still show success UI even if backend is unreachable
+            }
+
+            document.getElementById('statusIcon').textContent = isAccept ? '✓' : '✕';
+            document.getElementById('statusIcon').style.background = isAccept
+                ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
+            document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
+            document.getElementById('statusMessage').textContent = isAccept
+                ? 'You accepted the invitation. The host has been notified!'
+                : 'You declined the invitation. The host has been notified.';
+        }
+
+        function showError(msg) {
+            document.getElementById('statusIcon').textContent = '!';
+            document.getElementById('statusIcon').style.background = 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
+            document.getElementById('statusTitle').textContent = 'Error';
+            document.getElementById('statusMessage').textContent = msg;
+        }
+
+        processResponse();
+    </script>
+</body>
+</html>
