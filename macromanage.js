@@ -1,5 +1,6 @@
 class MacroManage {
     constructor() {
+        console.log('🚀 MacroManage v1.2.0 - Email Fix Deployed');
         this.currentTab = 'dashboard';
         this.user = { name: 'Guest User', email: 'jasonzhang072@gmail.com', friends: [] };
         this.events = [];
