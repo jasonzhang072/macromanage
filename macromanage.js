@@ -10,7 +10,8 @@ class MacroManage {
         this.currentMonth = new Date().getMonth();
         this.currentYear = new Date().getFullYear();
         this.calendarMonth = new Date();
-        this.API_URL = window.location.origin;
+        this.API_URL = window.location.origin || 'http://localhost:3000';
+        console.log('✅ API_URL initialized:', this.API_URL);
         this.insights = this.calculateInsights();
         this.navigate('dashboard');
     }
@@ -826,15 +827,16 @@ class MacroManage {
 
     async sendNotifications(event) {
         const results = [];
+        const apiUrl = window.location.origin || 'http://localhost:3000';
         console.log('🔔 Sending notifications for event:', event.title);
-        console.log('📧 API URL:', this.API_URL);
+        console.log('📧 API URL:', apiUrl);
         console.log('👥 Friends to notify:', event.friends);
         
         for (const friend of event.friends || []) {
             if (friend.type === 'email') {
                 try {
                     console.log('📤 Sending email to:', friend.contact);
-                    const emailRes = await fetch(`${this.API_URL}/api/send-email`, {
+                    const emailRes = await fetch(`${apiUrl}/api/send-email`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
