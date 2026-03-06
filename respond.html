@@ -50,7 +50,7 @@
             const isAccept = response === 'accept';
 
             try {
-                await fetch('http://localhost:3000/api/update-response', {
+                await fetch(`${window.location.origin}/api/update-response`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event_id: eventId, email: email, response: response })

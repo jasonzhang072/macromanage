@@ -155,6 +155,15 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(result).encode())
             return
         
+        if parsed.path == '/api/update-response':
+            # For now, just return success - we don't need to store responses in Vercel
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True}).encode())
+            return
+        
         self.send_response(404)
         self.end_headers()
     
