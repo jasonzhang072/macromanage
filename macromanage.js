@@ -9,6 +9,8 @@ class MacroManage {
         this.dateTimeSlots = {};
         this.currentMonth = new Date().getMonth();
         this.currentYear = new Date().getFullYear();
+        this.calendarMonth = new Date();
+        this.API_URL = window.location.origin;
         this.insights = this.calculateInsights();
         this.navigate('dashboard');
     }
