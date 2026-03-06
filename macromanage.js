@@ -828,19 +828,43 @@ class MacroManage {
 
     async sendNotifications(event) {
         const results = [];
-        console.log('🔔 Event created:', event.title);
-        console.log(' Friends to notify:', event.friends);
+        console.log('🔔 Sending notifications for event:', event.title);
+        console.log('👥 Friends to notify:', event.friends);
         
         for (const friend of event.friends || []) {
             if (friend.type === 'email') {
-                console.log('📤 Would send email to:', friend.contact);
-                console.log('📧 Event details:', {
-                    title: event.title,
-                    location: event.location,
-                    host: this.user.name || 'Someone'
-                });
-                // Email sending disabled for Vercel - just log it
-                results.push({ success: true, note: 'Email logging only - API disabled' });
+                try {
+                    console.log('📤 Sending email to:', friend.contact);
+                    
+                    // Use EmailJS for client-side email sending
+                    const emailData = {
+                        service_id: 'service_default',
+                        template_id: 'template_default',
+                        user_id: 'YOUR_PUBLIC_KEY',
+                        template_params: {
+                            to_email: friend.contact,
+                            event_title: event.title,
+                            location: event.location || 'TBD',
+                            host: this.user.name || 'Someone',
+                            event_id: event.id,
+                            reply_to: 'jasonzhang072@gmail.com'
+                        }
+                    };
+                    
+                    const emailRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(emailData)
+                    });
+                    
+                    console.log('📨 Email sent successfully to:', friend.contact);
+                    results.push({ success: true });
+                } catch (e) {
+                    console.error('❌ Email send error:', e);
+                    results.push({ success: false, error: e.message });
+                }
             }
         }
         
