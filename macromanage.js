@@ -36,6 +36,96 @@ class MacroManage {
         }
     }
     
+    processEventResponses() {
+        try {
+            const responses = JSON.parse(localStorage.getItem('event_responses') || '[]');
+            
+            responses.forEach(resp => {
+                const event = this.events.find(e => e.id === resp.event_id);
+                if (event) {
+                    // Add response if not already added
+                    if (!event.responses) event.responses = [];
+                    const exists = event.responses.find(r => r.email === resp.email);
+                    if (!exists) {
+                        event.responses.push(resp);
+                        
+                        // Calculate overlapping availability
+                        if (resp.response === 'accepted' && resp.availability) {
+                            this.calculateSuggestedTimes(event);
+                        }
+                    }
+                }
+            });
+            
+            this.saveEvents();
+        } catch (e) {
+            console.error('Error processing responses:', e);
+        }
+    }
+    
+    calculateSuggestedTimes(event) {
+        const acceptedResponses = (event.responses || []).filter(r => r.response === 'accepted' && r.availability);
+        if (acceptedResponses.length === 0) return;
+        
+        // Find overlapping time slots
+        const timeSlotCounts = {};
+        
+        acceptedResponses.forEach(resp => {
+            Object.entries(resp.availability).forEach(([date, times]) => {
+                if (times.start && times.end) {
+                    const key = `${date}|${times.start}|${times.end}`;
+                    if (!timeSlotCounts[key]) {
+                        timeSlotCounts[key] = { date, start: times.start, end: times.end, count: 0 };
+                    }
+                    timeSlotCounts[key].count++;
+                }
+            });
+        });
+        
+        // Sort by count (most people available) and convert to array
+        event.suggestedTimes = Object.values(timeSlotCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+    }
+    
+    confirmEvent(eventIdx, date, start, end) {
+        const event = this.events[eventIdx];
+        event.status = 'confirmed';
+        event.confirmedDate = date;
+        event.confirmedTime = `${start} - ${end}`;
+        this.saveEvents();
+        
+        // Notify all accepted invitees
+        this.notifyEventConfirmed(event);
+        
+        this.showToast('✅ Event confirmed! Notifications sent to all attendees.', 'success');
+        this.render();
+    }
+    
+    async notifyEventConfirmed(event) {
+        const acceptedEmails = (event.responses || [])
+            .filter(r => r.response === 'accepted')
+            .map(r => r.email);
+        
+        for (const email of acceptedEmails) {
+            try {
+                await fetch(`${this.API_URL}/api/send-confirmation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: email,
+                        eventTitle: event.title,
+                        date: event.confirmedDate,
+                        time: event.confirmedTime,
+                        location: event.location
+                    })
+                });
+            } catch (e) {
+                console.error('Error sending confirmation:', e);
+            }
+        }
+    }
+    
     calculateInsights() {
         const now = new Date();
         const events = this.events || [];
@@ -168,21 +258,66 @@ class MacroManage {
                 </div>
             `;
         } else if (this.currentTab === 'events') {
+            // Process responses from localStorage
+            this.processEventResponses();
+            
             app.innerHTML = `
                 <div class="tab-content">
                     <h2 class="text-2xl font-bold text-brown-700 mb-4">Your Events</h2>
-                    ${this.events.length > 0 ? this.events.map((e, idx) => `
-                        <div class="card p-4 mb-3 flex justify-between items-center">
-                            <div class="cursor-pointer flex-1" onclick="app.viewEvent('${e.id}')">
-                                <p class="font-bold text-brown-700">${e.title}</p>
-                                <p class="text-sm text-brown-500">${(e.dates || []).length} dates · ${(e.friends || []).length} invited</p>
+                    ${this.events.length > 0 ? this.events.map((e, idx) => {
+                        const responses = (e.responses || []).filter(r => r.response === 'accepted');
+                        const declined = (e.responses || []).filter(r => r.response === 'declined');
+                        const suggested = e.suggestedTimes || [];
+                        const pollResults = e.pollVotes || {};
+                        const totalVotes = Object.values(pollResults).reduce((sum, count) => sum + count, 0);
+                        
+                        return `
+                        <div class="card p-4 mb-3">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="cursor-pointer flex-1" onclick="app.viewEvent('${e.id}')">
+                                    <p class="font-bold text-brown-700 text-lg">${e.title}</p>
+                                    <p class="text-sm text-brown-500">${(e.dates || []).length} dates · ${(e.friends || []).length} invited</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status || 'pending'}</span>
+                                    <button onclick="event.stopPropagation(); app.deleteEvent(${idx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status || 'pending'}</span>
-                                <button onclick="event.stopPropagation(); app.deleteEvent(${idx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
-                            </div>
+                            
+                            ${responses.length > 0 ? `
+                                <div class="border-t border-beige-200 pt-3 mt-3">
+                                    <p class="text-sm font-semibold text-brown-700 mb-2">✅ Responses: ${responses.length} accepted, ${declined.length} declined</p>
+                                    ${suggested.length > 0 ? `
+                                        <div class="bg-green-50 rounded-lg p-3 mb-3">
+                                            <p class="text-sm font-semibold text-green-700 mb-2">🎯 Suggested Times (${suggested[0].count}/${responses.length} available):</p>
+                                            ${suggested.slice(0, 3).map(s => `
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-sm text-green-800">${s.date} · ${s.start} - ${s.end}</span>
+                                                    <button onclick="app.confirmEvent(${idx}, '${s.date}', '${s.start}', '${s.end}')" class="text-xs px-3 py-1 bg-green-600 text-white rounded-full hover:bg-green-700">Confirm</button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : '<p class="text-xs text-brown-400">Calculating overlapping availability...</p>'}
+                                </div>
+                            ` : ''}
+                            
+                            ${e.eventType === 'poll' && totalVotes > 0 ? `
+                                <div class="border-t border-beige-200 pt-3 mt-3">
+                                    <p class="text-sm font-semibold text-brown-700 mb-2">📊 Poll Results (${totalVotes} votes):</p>
+                                    ${Object.entries(pollResults).sort((a, b) => b[1] - a[1]).map(([option, count]) => `
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <div class="flex-1 bg-beige-100 rounded-full h-6 overflow-hidden">
+                                                <div class="bg-brown-500 h-full flex items-center px-2" style="width: ${(count / totalVotes * 100)}%">
+                                                    <span class="text-xs text-white font-semibold">${count}</span>
+                                                </div>
+                                            </div>
+                                            <span class="text-sm text-brown-700 w-32">${option}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                         </div>
-                    `).join('') : '<p class="text-brown-500 text-center py-8">No events yet</p>'}
+                    `}).join('') : '<p class="text-brown-500 text-center py-8">No events yet</p>'}
                 </div>
             `;
         } else if (this.currentTab === 'create') {
@@ -827,7 +962,13 @@ class MacroManage {
     }
 
     async finishCreate() {
-        const event = { ...this.currentEvent };
+        const event = { 
+            ...this.currentEvent,
+            responses: [],
+            status: 'pending',
+            suggestedTimes: [],
+            pollVotes: {}
+        };
         this.events.push(event);
         this.saveEvents();
         

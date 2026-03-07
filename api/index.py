@@ -195,6 +195,14 @@ class handler(BaseHTTPRequestHandler):
             response_type = data.get('response')
             availability = data.get('availability', {})
             
+            # Store response in localStorage (send back to frontend)
+            response_data = {
+                'event_id': event_id,
+                'email': email,
+                'response': response_type,
+                'availability': availability
+            }
+            
             # Send email to host
             host_email = SENDER_EMAIL
             
@@ -242,6 +250,59 @@ class handler(BaseHTTPRequestHandler):
             result = send_mailjet_email(host_email, subject, html_body)
             if not result['success']:
                 result = send_resend_email(host_email, subject, html_body)
+            
+            # Return response data so frontend can store it
+            result['response_data'] = response_data
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            return
+        
+        if parsed.path == '/api/send-confirmation':
+            # Send confirmation email to attendees
+            to_email = data.get('to')
+            event_title = data.get('eventTitle')
+            date = data.get('date')
+            time = data.get('time')
+            location = data.get('location', 'TBD')
+            
+            subject = f"✅ {event_title} is Confirmed!"
+            html_body = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F0E4D0;font-family:sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+  <tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;background:#FFFFFF;border-radius:24px;padding:40px;">
+      <tr><td>
+        <h1 style="color:#10B981;font-size:28px;margin:0 0 16px 0;">🎉 Event Confirmed!</h1>
+        <p style="color:#3D2410;font-size:16px;margin:0 0 24px 0;">Great news! <strong>{event_title}</strong> has been confirmed.</p>
+        <div style="background:#FDF6E9;border-radius:16px;padding:24px;margin:24px 0;">
+          <div style="margin-bottom:16px;">
+            <div style="font-size:12px;color:#9A7B5A;font-weight:bold;margin-bottom:4px;">📅 DATE</div>
+            <div style="font-size:18px;color:#3D2410;font-weight:600;">{date}</div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <div style="font-size:12px;color:#9A7B5A;font-weight:bold;margin-bottom:4px;">⏰ TIME</div>
+            <div style="font-size:18px;color:#3D2410;font-weight:600;">{time}</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#9A7B5A;font-weight:bold;margin-bottom:4px;">📍 LOCATION</div>
+            <div style="font-size:18px;color:#3D2410;font-weight:600;">{location}</div>
+          </div>
+        </div>
+        <p style="color:#7D6245;font-size:14px;margin:24px 0 0 0;text-align:center;">See you there! 🎊</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+            
+            result = send_mailjet_email(to_email, subject, html_body)
+            if not result['success']:
+                result = send_resend_email(to_email, subject, html_body)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')

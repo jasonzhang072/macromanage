@@ -231,7 +231,7 @@
             
             try {
                 // Send availability and notify host
-                await fetch(`${window.location.origin}/api/notify-host`, {
+                const res = await fetch(`${window.location.origin}/api/notify-host`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -241,6 +241,15 @@
                         availability: dateTimeSlots
                     })
                 });
+                
+                const result = await res.json();
+                
+                // Store response locally for host to access
+                if (result.response_data) {
+                    const responses = JSON.parse(localStorage.getItem('event_responses') || '[]');
+                    responses.push(result.response_data);
+                    localStorage.setItem('event_responses', JSON.stringify(responses));
+                }
                 
                 // Show success
                 document.getElementById('availabilityForm').classList.add('hidden');
