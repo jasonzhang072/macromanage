@@ -141,7 +141,9 @@ class handler(BaseHTTPRequestHandler):
                 'location': data.get('location', 'TBD'),
                 'hostName': data.get('hostName', 'Someone')
             }
-            response_url = f"https://macromanage.vercel.app/respond.html?event={data.get('eventId')}&email={data.get('to')}"
+            # Use the actual Vercel domain from the request
+            host = self.headers.get('Host', 'macromanage-git-main-jasonzhang072-2414s-projects.vercel.app')
+            response_url = f"https://{host}/respond.html?event={data.get('eventId')}&email={data.get('to')}"
             html = generate_email_template(event, response_url)
             
             result = send_mailjet_email(data.get('to'), f"You're invited: {event['title']}", html)
