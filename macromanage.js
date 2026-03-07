@@ -3,7 +3,8 @@ class MacroManage {
         console.log('🚀 MacroManage v1.2.0 - Email Fix Deployed');
         this.currentTab = 'dashboard';
         this.user = { name: 'Guest User', email: 'jasonzhang072@gmail.com', friends: [] };
-        this.events = [];
+        // Load events from localStorage
+        this.events = this.loadEvents();
         this.currentEvent = {};
         this.currentStep = 1;
         this.selectedDates = [];
@@ -15,6 +16,24 @@ class MacroManage {
         console.log('✅ API_URL initialized:', this.API_URL);
         this.insights = this.calculateInsights();
         this.navigate('dashboard');
+    }
+    
+    loadEvents() {
+        try {
+            const saved = localStorage.getItem('macromanage_events');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Error loading events:', e);
+            return [];
+        }
+    }
+    
+    saveEvents() {
+        try {
+            localStorage.setItem('macromanage_events', JSON.stringify(this.events));
+        } catch (e) {
+            console.error('Error saving events:', e);
+        }
     }
     
     calculateInsights() {
@@ -810,6 +829,7 @@ class MacroManage {
     async finishCreate() {
         const event = { ...this.currentEvent };
         this.events.push(event);
+        this.saveEvents();
         
         localStorage.setItem('mm_user', JSON.stringify({
             user: this.user,

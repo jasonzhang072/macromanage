@@ -121,6 +121,28 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "ok"}).encode())
             return
         
+        if parsed.path == '/api/get-event':
+            # Parse query params
+            query = parse_qs(parsed.query)
+            event_id = query.get('id', [None])[0]
+            
+            # For now, return mock event data - in production, fetch from database
+            event_data = {
+                "id": event_id,
+                "title": "Event",
+                "dateSlots": [
+                    {"date": "2026-03-10", "start": "", "end": ""},
+                    {"date": "2026-03-11", "start": "", "end": ""}
+                ]
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(event_data).encode())
+            return
+        
         self.send_response(404)
         self.end_headers()
     
@@ -164,6 +186,68 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({"success": True}).encode())
+            return
+        
+        if parsed.path == '/api/notify-host':
+            # Notify host when someone accepts/declines
+            event_id = data.get('event_id')
+            email = data.get('email')
+            response_type = data.get('response')
+            availability = data.get('availability', {})
+            
+            # Send email to host
+            host_email = SENDER_EMAIL
+            
+            if response_type == 'accepted':
+                avail_text = '<br>'.join([f"<strong>{date}</strong>: {times.get('start', 'Not specified')} - {times.get('end', 'Not specified')}" 
+                                         for date, times in availability.items()])
+                subject = f"✅ {email} accepted your invitation!"
+                html_body = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F0E4D0;font-family:sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+  <tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;background:#FFFFFF;border-radius:24px;padding:40px;">
+      <tr><td>
+        <h1 style="color:#10B981;font-size:24px;margin:0 0 16px 0;">🎉 Great News!</h1>
+        <p style="color:#3D2410;font-size:16px;margin:0 0 16px 0;"><strong>{email}</strong> accepted your invitation!</p>
+        <div style="background:#FDF6E9;border-radius:12px;padding:16px;margin:16px 0;">
+          <div style="font-size:14px;color:#7D6245;font-weight:bold;margin-bottom:8px;">Their Availability:</div>
+          <div style="font-size:14px;color:#5C3D1E;">{avail_text if avail_text else 'No specific times provided'}</div>
+        </div>
+        <p style="color:#7D6245;font-size:14px;margin:16px 0 0 0;">Check your MacroManage dashboard to see all responses!</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+            else:
+                subject = f"❌ {email} declined your invitation"
+                html_body = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F0E4D0;font-family:sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+  <tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;background:#FFFFFF;border-radius:24px;padding:40px;">
+      <tr><td>
+        <h1 style="color:#EF4444;font-size:24px;margin:0 0 16px 0;">Update on Your Event</h1>
+        <p style="color:#3D2410;font-size:16px;margin:0 0 16px 0;"><strong>{email}</strong> declined your invitation.</p>
+        <p style="color:#7D6245;font-size:14px;margin:16px 0 0 0;">Check your MacroManage dashboard to see all responses!</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+            
+            result = send_mailjet_email(host_email, subject, html_body)
+            if not result['success']:
+                result = send_resend_email(host_email, subject, html_body)
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
             return
         
         self.send_response(404)

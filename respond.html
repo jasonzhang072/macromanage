@@ -24,15 +24,27 @@
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-        <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold" id="statusIcon" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-            ✓
+    <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full" id="responseContainer">
+        <div class="text-center">
+            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold" id="statusIcon" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
+                ✓
+            </div>
+            <h1 class="text-2xl font-bold text-brown-700 mb-2" id="statusTitle">Processing...</h1>
+            <p class="text-brown-600 mb-6" id="statusMessage">Please wait while we record your response.</p>
         </div>
-        <h1 class="text-2xl font-bold text-brown-700 mb-2" id="statusTitle">Processing...</h1>
-        <p class="text-brown-600 mb-6" id="statusMessage">Please wait while we record your response.</p>
-        <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-            Open MacroManage
-        </a>
+        <div id="availabilityForm" class="hidden">
+            <h2 class="text-xl font-bold text-brown-700 mb-4">When are you available?</h2>
+            <p class="text-sm text-brown-600 mb-4">Select your available times so the host can find the best time for everyone.</p>
+            <div id="dateSlots" class="space-y-3 mb-6"></div>
+            <button onclick="submitAvailability()" class="w-full px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
+                Submit Availability
+            </button>
+        </div>
+        <div id="finalMessage" class="hidden text-center">
+            <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
+                Open MacroManage
+            </a>
+        </div>
     </div>
 
     <script>
@@ -40,6 +52,9 @@
         const eventId = urlParams.get('event');
         const email = urlParams.get('email');
         const response = urlParams.get('response');
+
+        let eventData = null;
+        let availability = {};
 
         async function processResponse() {
             if (!eventId || !email || !response) {
@@ -50,13 +65,13 @@
             const isAccept = response === 'accept';
 
             try {
-                await fetch(`${window.location.origin}/api/update-response`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event_id: eventId, email: email, response: response })
-                });
+                // Get event details
+                const eventRes = await fetch(`${window.location.origin}/api/get-event?id=${eventId}`);
+                if (eventRes.ok) {
+                    eventData = await eventRes.json();
+                }
             } catch (e) {
-                // Still show success UI even if backend is unreachable
+                console.error('Error fetching event:', e);
             }
 
             document.getElementById('statusIcon').textContent = isAccept ? '✓' : '✕';
@@ -64,9 +79,89 @@
                 ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                 : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
             document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
-            document.getElementById('statusMessage').textContent = isAccept
-                ? 'You accepted the invitation. The host has been notified!'
-                : 'You declined the invitation. The host has been notified.';
+            
+            if (isAccept && eventData && eventData.dateSlots) {
+                // Show availability form for accepted invitations
+                document.getElementById('statusMessage').textContent = 'Great! Now let the host know when you\'re available.';
+                setTimeout(() => {
+                    document.getElementById('availabilityForm').classList.remove('hidden');
+                    renderDateSlots();
+                }, 1000);
+            } else {
+                // For declined invitations, just show final message
+                document.getElementById('statusMessage').textContent = 'You declined the invitation. The host has been notified.';
+                setTimeout(() => {
+                    document.getElementById('finalMessage').classList.remove('hidden');
+                }, 1500);
+                
+                // Notify host of decline
+                try {
+                    await fetch(`${window.location.origin}/api/notify-host`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            event_id: eventId, 
+                            email: email, 
+                            response: 'declined'
+                        })
+                    });
+                } catch (e) {
+                    console.error('Error notifying host:', e);
+                }
+            }
+        }
+
+        function renderDateSlots() {
+            if (!eventData || !eventData.dateSlots) return;
+            
+            const container = document.getElementById('dateSlots');
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            
+            container.innerHTML = eventData.dateSlots.map((slot, i) => {
+                const dateObj = new Date(slot.date + 'T12:00:00');
+                const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
+                availability[slot.date] = { start: '', end: '' };
+                
+                return `<div class="bg-beige-100 rounded-xl p-4">
+                    <div class="text-sm font-semibold text-brown-700 mb-2">${label}</div>
+                    <div class="flex gap-2 items-center">
+                        <input type="time" id="start_${i}" onchange="updateAvailability('${slot.date}', 'start', this.value)" class="border border-beige-300 rounded-lg px-3 py-2 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                        <span class="text-brown-400 text-xs">to</span>
+                        <input type="time" id="end_${i}" onchange="updateAvailability('${slot.date}', 'end', this.value)" class="border border-beige-300 rounded-lg px-3 py-2 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function updateAvailability(date, field, value) {
+            if (!availability[date]) availability[date] = {};
+            availability[date][field] = value;
+        }
+
+        async function submitAvailability() {
+            try {
+                // Send availability and notify host
+                await fetch(`${window.location.origin}/api/notify-host`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        event_id: eventId, 
+                        email: email, 
+                        response: 'accepted',
+                        availability: availability
+                    })
+                });
+                
+                // Show success
+                document.getElementById('availabilityForm').classList.add('hidden');
+                document.getElementById('statusTitle').textContent = '✅ All Set!';
+                document.getElementById('statusMessage').textContent = 'Your availability has been sent to the host!';
+                document.getElementById('finalMessage').classList.remove('hidden');
+            } catch (e) {
+                console.error('Error submitting availability:', e);
+                alert('Error submitting availability. Please try again.');
+            }
         }
 
         function showError(msg) {
