@@ -34,8 +34,22 @@
         </div>
         <div id="availabilityForm" class="hidden">
             <h2 class="text-xl font-bold text-brown-700 mb-4">When are you available?</h2>
-            <p class="text-sm text-brown-600 mb-4">Select your available times so the host can find the best time for everyone.</p>
-            <div id="dateSlots" class="space-y-3 mb-6"></div>
+            <p class="text-sm text-brown-600 mb-4">Select any dates and times you're available. The host will find overlapping times.</p>
+            
+            <!-- Calendar -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <button onclick="changeMonth(-1)" class="text-brown-600 hover:text-brown-800 font-bold text-xl px-3 py-1">‹</button>
+                    <span class="font-semibold text-brown-700" id="calendarMonth"></span>
+                    <button onclick="changeMonth(1)" class="text-brown-600 hover:text-brown-800 font-bold text-xl px-3 py-1">›</button>
+                </div>
+                <div class="grid grid-cols-7 gap-1" id="calendar"></div>
+                <p class="text-xs text-brown-400 mt-2" id="selectedCount">0 date(s) selected</p>
+            </div>
+            
+            <!-- Time Slots -->
+            <div id="timeSlots" class="mb-4"></div>
+            
             <button onclick="submitAvailability()" class="w-full px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
                 Submit Availability
             </button>
@@ -54,7 +68,10 @@
         const response = urlParams.get('response');
 
         let eventData = null;
-        let availability = {};
+        let selectedDates = [];
+        let dateTimeSlots = {};
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
 
         async function processResponse() {
             if (!eventId || !email || !response) {
@@ -80,12 +97,12 @@
                 : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
             document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
             
-            if (isAccept && eventData && eventData.dateSlots) {
+            if (isAccept) {
                 // Show availability form for accepted invitations
                 document.getElementById('statusMessage').textContent = 'Great! Now let the host know when you\'re available.';
                 setTimeout(() => {
                     document.getElementById('availabilityForm').classList.remove('hidden');
-                    renderDateSlots();
+                    renderCalendar();
                 }, 1000);
             } else {
                 // For declined invitations, just show final message
@@ -111,35 +128,107 @@
             }
         }
 
-        function renderDateSlots() {
-            if (!eventData || !eventData.dateSlots) return;
+        function renderCalendar() {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
             
-            const container = document.getElementById('dateSlots');
+            document.getElementById('calendarMonth').textContent = months[currentMonth] + ' ' + currentYear;
+            
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            let html = dayNames.map(d => `<div class="text-center text-xs font-semibold text-brown-400 py-1">${d}</div>`).join('');
+            
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth, day);
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isPast = date < today;
+                const isSelected = selectedDates.includes(dateStr);
+                
+                const classes = isPast 
+                    ? 'text-beige-300 cursor-not-allowed'
+                    : isSelected
+                    ? 'bg-brown-500 text-white font-semibold cursor-pointer hover:bg-brown-600'
+                    : 'bg-beige-200 text-brown-600 cursor-pointer hover:bg-beige-300';
+                
+                html += `<div onclick="${isPast ? '' : `toggleDate('${dateStr}')`}" class="${classes} text-center py-2 rounded-lg text-sm transition-all">${day}</div>`;
+            }
+            
+            document.getElementById('calendar').innerHTML = html;
+            updateTimeSlotsDisplay();
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        function toggleDate(dateStr) {
+            if (selectedDates.includes(dateStr)) {
+                selectedDates = selectedDates.filter(d => d !== dateStr);
+                delete dateTimeSlots[dateStr];
+            } else {
+                selectedDates.push(dateStr);
+                selectedDates.sort();
+                if (!dateTimeSlots[dateStr]) {
+                    dateTimeSlots[dateStr] = { start: '', end: '' };
+                }
+            }
+            renderCalendar();
+        }
+
+        function updateTimeSlotsDisplay() {
+            const container = document.getElementById('timeSlots');
+            const count = document.getElementById('selectedCount');
+            count.textContent = `${selectedDates.length} date(s) selected`;
+            
+            if (selectedDates.length === 0) {
+                container.innerHTML = '<p class="text-sm text-brown-400 text-center">Select dates above to set time slots</p>';
+                return;
+            }
+            
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             
-            container.innerHTML = eventData.dateSlots.map((slot, i) => {
-                const dateObj = new Date(slot.date + 'T12:00:00');
-                const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                availability[slot.date] = { start: '', end: '' };
-                
-                return `<div class="bg-beige-100 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-brown-700 mb-2">${label}</div>
-                    <div class="flex gap-2 items-center">
-                        <input type="time" id="start_${i}" onchange="updateAvailability('${slot.date}', 'start', this.value)" class="border border-beige-300 rounded-lg px-3 py-2 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
-                        <span class="text-brown-400 text-xs">to</span>
-                        <input type="time" id="end_${i}" onchange="updateAvailability('${slot.date}', 'end', this.value)" class="border border-beige-300 rounded-lg px-3 py-2 text-sm text-brown-700 bg-white flex-1" placeholder="End">
-                    </div>
-                </div>`;
-            }).join('');
+            container.innerHTML = '<div class="border-t border-beige-200 pt-3"><p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>' +
+                selectedDates.map(d => {
+                    const slot = dateTimeSlots[d] || { start: '', end: '' };
+                    const dateObj = new Date(d + 'T12:00:00');
+                    const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
+                    return `<div class="flex items-center gap-2 mb-3 bg-beige-100 rounded-xl p-3">
+                        <span class="text-sm font-semibold text-brown-700 w-24 shrink-0">${label}</span>
+                        <input type="time" value="${slot.start}" onchange="updateTimeSlot('${d}', 'start', this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                        <span class="text-brown-400 text-xs font-medium">to</span>
+                        <input type="time" value="${slot.end}" onchange="updateTimeSlot('${d}', 'end', this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                    </div>`;
+                }).join('') + '</div>';
         }
 
-        function updateAvailability(date, field, value) {
-            if (!availability[date]) availability[date] = {};
-            availability[date][field] = value;
+        function updateTimeSlot(date, field, value) {
+            if (!dateTimeSlots[date]) dateTimeSlots[date] = { start: '', end: '' };
+            dateTimeSlots[date][field] = value;
         }
 
         async function submitAvailability() {
+            if (selectedDates.length === 0) {
+                alert('Please select at least one date!');
+                return;
+            }
+            
             try {
                 // Send availability and notify host
                 await fetch(`${window.location.origin}/api/notify-host`, {
@@ -149,7 +238,7 @@
                         event_id: eventId, 
                         email: email, 
                         response: 'accepted',
-                        availability: availability
+                        availability: dateTimeSlots
                     })
                 });
                 
