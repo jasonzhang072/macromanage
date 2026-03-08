@@ -53,6 +53,9 @@ class MacroManage {
                         if (resp.response === 'accepted' && resp.availability) {
                             this.calculateSuggestedTimes(event);
                         }
+                        
+                        // Check if all friends have responded
+                        this.checkAllResponded(event);
                     }
                 }
             });
@@ -60,6 +63,28 @@ class MacroManage {
             this.saveEvents();
         } catch (e) {
             console.error('Error processing responses:', e);
+        }
+    }
+    
+    checkAllResponded(event) {
+        const totalInvited = (event.friends || []).length;
+        const totalResponses = (event.responses || []).length;
+        
+        // If all friends have responded, auto-confirm with best suggested time
+        if (totalInvited > 0 && totalResponses >= totalInvited && event.status === 'pending') {
+            const suggested = event.suggestedTimes || [];
+            if (suggested.length > 0) {
+                // Auto-confirm with the time that has most people available
+                const bestTime = suggested[0];
+                event.status = 'confirmed';
+                event.confirmedDate = bestTime.date;
+                event.confirmedTime = `${bestTime.start} - ${bestTime.end}`;
+                
+                // Notify all accepted invitees
+                this.notifyEventConfirmed(event);
+                
+                console.log(`✅ Event "${event.title}" auto-confirmed: ${bestTime.date} at ${bestTime.start}-${bestTime.end}`);
+            }
         }
     }
     
@@ -279,6 +304,7 @@ class MacroManage {
                                     <p class="text-sm text-brown-500">${(e.dates || []).length} dates · ${(e.friends || []).length} invited</p>
                                 </div>
                                 <div class="flex items-center gap-3">
+                                    <button onclick="event.stopPropagation(); app.showAddFriendsModal(${idx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
                                     <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status || 'pending'}</span>
                                     <button onclick="event.stopPropagation(); app.deleteEvent(${idx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
                                 </div>
@@ -987,12 +1013,18 @@ class MacroManage {
         this.navigate('events');
     }
 
-    async sendNotifications(event) {
+    async sendNotifications(event, specificEmails = null) {
         const results = [];
         console.log('🔔 Sending notifications for event:', event.title);
-        console.log('👥 Friends to notify:', event.friends);
         
-        for (const friend of event.friends || []) {
+        // If specific emails provided, only send to those; otherwise send to all friends
+        const friendsToNotify = specificEmails 
+            ? event.friends.filter(f => specificEmails.includes(f.contact))
+            : event.friends;
+        
+        console.log('👥 Friends to notify:', friendsToNotify);
+        
+        for (const friend of friendsToNotify || []) {
             if (friend.type === 'email') {
                 try {
                     console.log('📤 Sending email to:', friend.contact);
@@ -1092,6 +1124,82 @@ class MacroManage {
         
         this.showToast('Event deleted', 'success');
         this.render();
+    }
+    
+    showAddFriendsModal(eventIdx) {
+        const event = this.events[eventIdx];
+        const modalHtml = `
+            <div id="addFriendsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target.id==='addFriendsModal') app.closeAddFriendsModal()">
+                <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+                    <h3 class="text-xl font-bold text-brown-700 mb-4">Add Friends to "${event.title}"</h3>
+                    <p class="text-sm text-brown-600 mb-4">Add more friends who you forgot to invite initially.</p>
+                    
+                    <div class="mb-4">
+                        <label class="text-sm font-semibold text-brown-700 mb-2 block">Email Address</label>
+                        <div class="flex gap-2">
+                            <input type="email" id="newFriendEmail" placeholder="friend@example.com" class="input-field flex-1" onkeypress="if(event.key==='Enter') app.addFriendToEvent(${eventIdx})">
+                            <button onclick="app.addFriendToEvent(${eventIdx})" class="px-4 py-2 bg-brown-500 text-white rounded-lg hover:bg-brown-600 transition-colors">Add</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs font-semibold text-brown-700 mb-2">Currently Invited (${(event.friends || []).length}):</p>
+                        <div class="space-y-1 max-h-40 overflow-y-auto">
+                            ${(event.friends || []).map(f => `
+                                <div class="text-xs text-brown-600 bg-beige-100 px-3 py-1 rounded-lg">${f.contact}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="app.closeAddFriendsModal()" class="flex-1 px-4 py-2 bg-beige-200 text-brown-700 rounded-lg hover:bg-beige-300 transition-colors">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    closeAddFriendsModal() {
+        const modal = document.getElementById('addFriendsModal');
+        if (modal) modal.remove();
+    }
+    
+    async addFriendToEvent(eventIdx) {
+        const input = document.getElementById('newFriendEmail');
+        const email = input ? input.value.trim() : '';
+        
+        if (!email || !email.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        
+        const event = this.events[eventIdx];
+        
+        // Check if already invited
+        if (event.friends.some(f => f.contact === email)) {
+            alert('This friend is already invited!');
+            return;
+        }
+        
+        // Add friend to event
+        event.friends.push({ 
+            type: 'email', 
+            contact: email, 
+            name: email.split('@')[0] 
+        });
+        
+        this.saveEvents();
+        
+        // Send invitation to new friend
+        await this.sendNotifications(event, [email]);
+        
+        this.showToast(`✅ Invitation sent to ${email}`, 'success');
+        
+        // Update modal
+        this.closeAddFriendsModal();
+        this.showAddFriendsModal(eventIdx);
     }
 }
 
