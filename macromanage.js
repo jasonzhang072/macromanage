@@ -19,7 +19,8 @@ class MacroManage {
     }
     
     checkAuth() {
-        const session = localStorage.getItem('user_session');
+        // Check both localStorage (remember me) and sessionStorage
+        const session = localStorage.getItem('user_session') || sessionStorage.getItem('user_session');
         if (session) {
             try {
                 const userData = JSON.parse(session);
@@ -53,9 +54,14 @@ class MacroManage {
                             <label class="text-sm font-semibold text-brown-700 mb-2 block">Password</label>
                             <input type="password" id="authPassword" placeholder="••••••••" class="input-field" onkeypress="if(event.key==='Enter') app.login()">
                         </div>
-                        <div class="mb-6">
+                        <div class="mb-4">
                             <label class="text-sm font-semibold text-brown-700 mb-2 block">Name (for signup)</label>
                             <input type="text" id="authName" placeholder="Your Name" class="input-field">
+                        </div>
+                        
+                        <div class="mb-6 flex items-center">
+                            <input type="checkbox" id="rememberMe" class="mr-2" checked>
+                            <label for="rememberMe" class="text-sm text-brown-700">Remember me</label>
                         </div>
                         
                         <div id="authError" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm"></div>
@@ -64,6 +70,8 @@ class MacroManage {
                             <button onclick="app.login()" class="btn-primary flex-1">Login</button>
                             <button onclick="app.signup()" class="btn-secondary flex-1">Sign Up</button>
                         </div>
+                        
+                        <p class="text-xs text-brown-500 text-center mt-4">Note: This is a demo - data stored in memory only</p>
                     </div>
                 </div>
             </div>
@@ -73,7 +81,7 @@ class MacroManage {
     async login() {
         const email = document.getElementById('authEmail')?.value;
         const password = document.getElementById('authPassword')?.value;
-        const errorDiv = document.getElementById('authError');
+        const rememberMe = document.getElementById('rememberMe')?.checked;
         
         if (!email || !password) {
             this.showAuthError('Please enter email and password');
@@ -81,18 +89,31 @@ class MacroManage {
         }
         
         try {
+            console.log('Attempting login to:', `${this.API_URL}/api/login`);
             const res = await fetch(`${this.API_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
             
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
             const data = await res.json();
+            console.log('Login response:', data);
             
             if (data.success) {
                 this.user = data.user;
                 this.events = data.events || [];
-                localStorage.setItem('user_session', JSON.stringify({ user: data.user, events: data.events }));
+                
+                const sessionData = { user: data.user, events: data.events, rememberMe };
+                if (rememberMe) {
+                    localStorage.setItem('user_session', JSON.stringify(sessionData));
+                } else {
+                    sessionStorage.setItem('user_session', JSON.stringify(sessionData));
+                }
+                
                 this.insights = this.calculateInsights();
                 this.navigate('dashboard');
             } else {
@@ -100,7 +121,7 @@ class MacroManage {
             }
         } catch (e) {
             console.error('Login error:', e);
-            this.showAuthError('Connection error. Please try again.');
+            this.showAuthError(`Connection error: ${e.message}. Check console for details.`);
         }
     }
     
@@ -108,6 +129,7 @@ class MacroManage {
         const email = document.getElementById('authEmail')?.value;
         const password = document.getElementById('authPassword')?.value;
         const name = document.getElementById('authName')?.value;
+        const rememberMe = document.getElementById('rememberMe')?.checked;
         
         if (!email || !password || !name) {
             this.showAuthError('Please fill in all fields');
@@ -115,18 +137,31 @@ class MacroManage {
         }
         
         try {
+            console.log('Attempting signup to:', `${this.API_URL}/api/signup`);
             const res = await fetch(`${this.API_URL}/api/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password, name })
             });
             
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
             const data = await res.json();
+            console.log('Signup response:', data);
             
             if (data.success) {
                 this.user = data.user;
                 this.events = [];
-                localStorage.setItem('user_session', JSON.stringify({ user: data.user, events: [] }));
+                
+                const sessionData = { user: data.user, events: [], rememberMe };
+                if (rememberMe) {
+                    localStorage.setItem('user_session', JSON.stringify(sessionData));
+                } else {
+                    sessionStorage.setItem('user_session', JSON.stringify(sessionData));
+                }
+                
                 this.insights = this.calculateInsights();
                 this.navigate('dashboard');
             } else {
@@ -134,7 +169,7 @@ class MacroManage {
             }
         } catch (e) {
             console.error('Signup error:', e);
-            this.showAuthError('Connection error. Please try again.');
+            this.showAuthError(`Connection error: ${e.message}. Check console for details.`);
         }
     }
     
