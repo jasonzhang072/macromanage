@@ -418,45 +418,35 @@ class MacroManage {
             const step = this.currentEvent.step;
             if (step === 1) {
                 app.innerHTML = `
-                    <div class="card p-6 max-w-md mx-auto tab-content">
+                    <div class="card p-6 max-w-2xl mx-auto tab-content">
                         <h3 class="font-bold text-brown-700 mb-4 text-xl">Event Details</h3>
-                        <div class="space-y-4">
-                            <input type="text" id="eventTitle" placeholder="Event Title" class="input-field">
-                            <input type="number" id="eventBudget" placeholder="Budget per person ($)" class="input-field">
-                            <input type="text" id="eventLocation" placeholder="Location (address, venue, etc.)" class="input-field">
-                            
-                            <!-- Poll Options -->
-                            <div class="border-t border-beige-200 pt-4 mt-4">
-                                <label class="text-sm font-semibold text-brown-700 mb-2 block">Event Type</label>
-                                <select id="eventType" class="input-field" onchange="app.togglePollMode(this.value)">
-                                    <option value="single">Single Event</option>
-                                    <option value="poll">Poll (Let friends vote on activity options)</option>
-                                </select>
-                                <p class="text-xs text-brown-500 mt-1">Choose "Poll" to let friends vote on different activity options</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <input type="text" id="eventTitle" placeholder="Event Title" class="input-field" value="${this.currentEvent?.title || ''}">
+                                <input type="number" id="eventBudget" placeholder="Budget per person ($)" class="input-field" value="${this.currentEvent?.budget || ''}">
+                                <input type="text" id="eventLocation" placeholder="Location (address, venue, etc.)" class="input-field" value="${this.currentEvent?.location || ''}" oninput="app.updateMapPreview(this.value)">
                                 
-                                <div id="pollOptions" class="hidden mt-3 space-y-2">
-                                    <label class="text-xs font-semibold text-brown-700 block">Activity Options (add 2-5 options):</label>
-                                    <div id="pollOptionsList"></div>
-                                    <button type="button" onclick="app.addPollOption()" class="text-sm text-blue-600 hover:text-blue-700">+ Add Option</button>
+                                <!-- Event Type -->
+                                <div>
+                                    <label class="text-sm font-semibold text-brown-700 mb-2 block">Event Type</label>
+                                    <select id="eventType" class="input-field" onchange="app.togglePollMode(this.value)">
+                                        <option value="single">Single Event</option>
+                                        <option value="poll">Poll (Let friends vote on activity options)</option>
+                                    </select>
+                                    
+                                    <div id="pollOptions" class="hidden mt-3 space-y-2">
+                                        <label class="text-xs font-semibold text-brown-700 block">Activity Options:</label>
+                                        <div id="pollOptionsList"></div>
+                                        <button type="button" onclick="app.addPollOption()" class="text-sm text-blue-600 hover:text-blue-700">+ Add Option</button>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <!-- Smart Reminders -->
-                            <div class="border-t border-beige-200 pt-4 mt-4">
-                                <label class="text-sm font-semibold text-brown-700 mb-2 block">Smart Reminders</label>
-                                <div class="space-y-2">
-                                    <label class="flex items-center gap-2 text-sm text-brown-600">
-                                        <input type="checkbox" id="reminder1day" checked class="rounded">
-                                        <span>One day before 📅</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 text-sm text-brown-600">
-                                        <input type="checkbox" id="reminder1hour" checked class="rounded">
-                                        <span>One hour before ⏰</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 text-sm text-brown-600">
-                                        <input type="checkbox" id="reminderSummary" checked class="rounded">
-                                        <span>Push summaries (e.g., "3 friends confirmed, 2 maybe")</span>
-                                    </label>
+                            <!-- Map Preview -->
+                            <div>
+                                <label class="text-sm font-semibold text-brown-700 mb-2 block">Location Preview</label>
+                                <div id="mapPreview" class="w-full h-64 bg-beige-100 rounded-lg flex items-center justify-center text-brown-400 text-sm">
+                                    Enter a location to see map preview
                                 </div>
                             </div>
                         </div>
@@ -1541,7 +1531,7 @@ class MacroManage {
         this.render();
     }
     
-    // View Event Details (with Map, Expenses, Carpool)
+    // View Event Details - Comprehensive Stats Page
     viewEvent(eventId) {
         const event = this.events.find(e => e.id === eventId);
         if (!event) return;
@@ -1549,72 +1539,155 @@ class MacroManage {
         const expenses = event.expenses || [];
         const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
         const carpool = event.carpool || { drivers: [], riders: [] };
+        const responses = (event.responses || []).filter(r => r.response === 'accepted');
+        const declined = (event.responses || []).filter(r => r.response === 'declined');
+        const suggested = event.suggestedTimes || [];
         
         const modalHtml = `
-            <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto" onclick="if(event.target.id==='eventModal') app.closeEventModal()">
-                <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 my-8" onclick="event.stopPropagation()">
-                    <h2 class="text-2xl font-bold text-brown-700 mb-4">${event.title}</h2>
-                    
-                    <!-- Map View -->
-                    ${event.location ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold text-brown-700 mb-2">Location</h3>
-                            <p class="text-sm text-brown-600 mb-2">${event.location}</p>
-                            <iframe width="100%" height="300" frameborder="0" style="border:0; border-radius:12px;" 
-                                src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(event.location)}" 
-                                allowfullscreen></iframe>
+            <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4" onclick="if(event.target.id==='eventModal') app.closeEventModal()">
+                <div class="bg-white rounded-2xl p-6 max-w-5xl w-full my-8 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-3xl font-bold text-brown-700">${event.title}</h2>
+                            <p class="text-sm text-brown-500 mt-1">Budget: $${event.budget || 0} per person</p>
                         </div>
-                    ` : ''}
-                    
-                    <!-- Expense Splitting -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-brown-700 mb-2">Expense Splitting</h3>
-                        <div class="bg-beige-100 rounded-lg p-4 mb-3">
-                            <p class="text-sm font-semibold text-brown-700">Total: $${totalExpenses.toFixed(2)}</p>
-                            <p class="text-xs text-brown-600">Per person: $${((totalExpenses / (event.friends?.length || 1))).toFixed(2)}</p>
-                        </div>
-                        <div class="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                            ${expenses.map((exp, i) => `
-                                <div class="flex justify-between items-center bg-white rounded-lg p-2 text-sm">
-                                    <span class="text-brown-700">${exp.description}</span>
-                                    <span class="font-semibold text-brown-700">$${parseFloat(exp.amount).toFixed(2)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button onclick="app.addExpense('${event.id}')" class="text-sm text-blue-600 hover:text-blue-700">+ Add Expense</button>
+                        <button onclick="app.closeEventModal()" class="text-brown-400 hover:text-brown-600 text-2xl">&times;</button>
                     </div>
                     
-                    <!-- Carpool Coordination -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-brown-700 mb-2">Carpool</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-xs font-semibold text-brown-700 mb-2">Drivers (${carpool.drivers.length})</p>
-                                <div class="space-y-1">
-                                    ${carpool.drivers.map(d => `
-                                        <div class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-lg">${d.name} (${d.seats} seats)</div>
-                                    `).join('') || '<p class="text-xs text-brown-400">No drivers yet</p>'}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Left Column -->
+                        <div class="space-y-6">
+                            <!-- Map View -->
+                            ${event.location ? `
+                                <div class="card p-4">
+                                    <h3 class="text-lg font-semibold text-brown-700 mb-3">Location</h3>
+                                    <p class="text-sm text-brown-600 mb-3">${event.location}</p>
+                                    <iframe width="100%" height="250" frameborder="0" style="border:0; border-radius:12px;" 
+                                        src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(event.location)}" 
+                                        allowfullscreen></iframe>
                                 </div>
-                                <button onclick="app.addDriver('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">+ I can drive</button>
+                            ` : ''}
+                            
+                            <!-- Availability & Responses -->
+                            <div class="card p-4">
+                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Availability</h3>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-brown-600">Accepted</span>
+                                        <span class="font-semibold text-green-600">${responses.length}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-brown-600">Declined</span>
+                                        <span class="font-semibold text-red-600">${declined.length}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-brown-600">Total Invited</span>
+                                        <span class="font-semibold text-brown-700">${(event.friends || []).length}</span>
+                                    </div>
+                                </div>
+                                
+                                ${suggested.length > 0 ? `
+                                    <div class="mt-4 pt-4 border-t border-beige-200">
+                                        <p class="text-sm font-semibold text-brown-700 mb-2">Best Times (${suggested[0].count}/${responses.length} available):</p>
+                                        ${suggested.slice(0, 3).map(s => `
+                                            <div class="flex justify-between items-center mb-2 bg-green-50 p-2 rounded-lg">
+                                                <span class="text-sm text-green-800">${s.date} · ${s.start}-${s.end}</span>
+                                                <button onclick="app.confirmEvent(${this.events.indexOf(event)}, '${s.date}', '${s.start}', '${s.end}')" class="text-xs px-2 py-1 bg-green-600 text-white rounded">Confirm</button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
                             </div>
-                            <div>
-                                <p class="text-xs font-semibold text-brown-700 mb-2">Need Rides (${carpool.riders.length})</p>
-                                <div class="space-y-1">
-                                    ${carpool.riders.map(r => `
-                                        <div class="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg">${r.name}</div>
-                                    `).join('') || '<p class="text-xs text-brown-400">Everyone has rides</p>'}
+                        </div>
+                        
+                        <!-- Right Column -->
+                        <div class="space-y-6">
+                            <!-- Expense Splitting -->
+                            <div class="card p-4">
+                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Expenses</h3>
+                                <div class="bg-beige-100 rounded-lg p-3 mb-3">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-sm font-semibold text-brown-700">Total</span>
+                                        <span class="text-lg font-bold text-brown-700">$${totalExpenses.toFixed(2)}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-brown-600">Per person</span>
+                                        <span class="text-sm font-semibold text-brown-600">$${((totalExpenses / Math.max(event.friends?.length || 1, 1))).toFixed(2)}</span>
+                                    </div>
                                 </div>
-                                <button onclick="app.addRider('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">+ I need a ride</button>
+                                <div class="space-y-2 mb-3 max-h-32 overflow-y-auto">
+                                    ${expenses.length > 0 ? expenses.map(exp => `
+                                        <div class="flex justify-between items-center bg-white rounded-lg p-2 text-sm">
+                                            <span class="text-brown-700">${exp.description}</span>
+                                            <span class="font-semibold text-brown-700">$${parseFloat(exp.amount).toFixed(2)}</span>
+                                        </div>
+                                    `).join('') : '<p class="text-sm text-brown-400 text-center py-2">No expenses yet</p>'}
+                                </div>
+                                <button onclick="app.addExpense('${event.id}')" class="text-sm text-blue-600 hover:text-blue-700">+ Add Expense</button>
+                            </div>
+                            
+                            <!-- Carpool Coordination -->
+                            <div class="card p-4">
+                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Carpool</h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <p class="text-xs font-semibold text-brown-700 mb-2">Drivers (${carpool.drivers.length})</p>
+                                        <div class="space-y-1 mb-2">
+                                            ${carpool.drivers.length > 0 ? carpool.drivers.map(d => `
+                                                <div class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">${d.name} (${d.seats} seats)</div>
+                                            `).join('') : '<p class="text-xs text-brown-400">None</p>'}
+                                        </div>
+                                        <button onclick="app.addDriver('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700">+ I can drive</button>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-brown-700 mb-2">Need Rides (${carpool.riders.length})</p>
+                                        <div class="space-y-1 mb-2">
+                                            ${carpool.riders.length > 0 ? carpool.riders.map(r => `
+                                                <div class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">${r.name}</div>
+                                            `).join('') : '<p class="text-xs text-brown-400">None</p>'}
+                                        </div>
+                                        <button onclick="app.addRider('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700">+ Need ride</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Friends List -->
+                            <div class="card p-4">
+                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Invited Friends</h3>
+                                <div class="space-y-1 max-h-32 overflow-y-auto">
+                                    ${(event.friends || []).map(f => `
+                                        <div class="text-sm bg-beige-100 px-3 py-1 rounded">${f.contact}</div>
+                                    `).join('')}
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <button onclick="app.closeEventModal()" class="w-full px-4 py-2 bg-brown-500 text-white rounded-lg hover:bg-brown-600 transition-colors">Close</button>
+                    <div class="mt-6 flex gap-3">
+                        <button onclick="app.editEvent(${this.events.indexOf(event)})" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Edit Event</button>
+                        <button onclick="app.closeEventModal()" class="flex-1 px-4 py-2 bg-brown-500 text-white rounded-lg hover:bg-brown-600">Close</button>
+                    </div>
                 </div>
             </div>
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // Update Map Preview in Event Creation
+    updateMapPreview(location) {
+        const mapPreview = document.getElementById('mapPreview');
+        if (!mapPreview) return;
+        
+        if (location && location.trim().length > 3) {
+            mapPreview.innerHTML = `
+                <iframe width="100%" height="100%" frameborder="0" style="border:0; border-radius:12px;" 
+                    src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(location)}" 
+                    allowfullscreen></iframe>
+            `;
+        } else {
+            mapPreview.innerHTML = '<div class="flex items-center justify-center h-full text-brown-400 text-sm">Enter a location to see map preview</div>';
+        }
     }
     
     closeEventModal() {
