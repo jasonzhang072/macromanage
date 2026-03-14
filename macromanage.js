@@ -406,38 +406,71 @@ class MacroManage {
         app.innerHTML = '';
         
         if (this.currentTab === 'dashboard') {
+            const insights = this.calculateInsights();
             app.innerHTML = `
                 <div class="tab-content">
                     <h1 class="text-2xl font-bold text-brown-700 mb-6">Welcome back, ${this.user.name}</h1>
+                    
                     <div class="grid grid-cols-4 gap-4 mb-6">
                         <div class="card p-6 text-center">
                             <p class="text-4xl font-bold text-brown-600 mb-2">${this.events.length}</p>
-                            <p class="text-sm text-brown-500">Events</p>
+                            <p class="text-sm text-brown-500">Total Events</p>
                         </div>
                         <div class="card p-6 text-center">
                             <p class="text-4xl font-bold text-green-600 mb-2">${this.events.filter(e => e.status === 'confirmed').length}</p>
                             <p class="text-sm text-brown-500">Confirmed</p>
                         </div>
                         <div class="card p-6 text-center">
-                            <p class="text-4xl font-bold text-yellow-600 mb-2">${this.events.filter(e => e.status === 'pending').length}</p>
+                            <p class="text-4xl font-bold text-red-600 mb-2">${this.events.filter(e => e.status === 'pending').length}</p>
                             <p class="text-sm text-brown-500">Pending</p>
                         </div>
-                        <div class="card p-6 text-center">
-                            <p class="text-4xl font-bold text-brown-600 mb-2">0</p>
-                            <p class="text-sm text-brown-500">Alerts</p>
+                        <div class="card p-6 text-center bg-red-50">
+                            <p class="text-4xl font-bold text-red-600 mb-2">${this.notifications.filter(n => n.type === 'alert' && !n.read).length}</p>
+                            <p class="text-sm text-red-700 font-semibold">Alerts</p>
                         </div>
                     </div>
-                    <div class="card p-6">
-                        <h3 class="font-bold text-brown-700 mb-4">Recent Events</h3>
-                        ${this.events.length > 0 ? this.events.slice(0, 3).map(e => `
-                            <div class="flex justify-between items-center py-3 border-b border-beige-200 last:border-0">
-                                <div>
-                                    <p class="font-medium text-brown-700">${e.title}</p>
-                                    <p class="text-sm text-brown-500">${(e.dates || [])[0] || 'No date'} · ${(e.times || [])[0] || 'TBD'}</p>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="card p-6 text-center">
+                            <p class="text-3xl font-bold text-green-600 mb-2">${insights.confirmedRate}%</p>
+                            <p class="text-sm text-brown-500">Confirmed Rate</p>
+                        </div>
+                        <div class="card p-6 text-center">
+                            <p class="text-3xl font-bold text-blue-600 mb-2">${insights.weeklyEvents}</p>
+                            <p class="text-sm text-brown-500">This Week</p>
+                        </div>
+                        <div class="card p-6 text-center">
+                            <p class="text-3xl font-bold text-brown-600 mb-2">${insights.mostCommonTime}</p>
+                            <p class="text-sm text-brown-500">Common Time</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <div class="card p-6">
+                            <h3 class="font-bold text-brown-700 mb-4">Recent Events</h3>
+                            ${this.events.length > 0 ? this.events.slice(0, 5).map(e => `
+                                <div class="flex justify-between items-center py-2 border-b border-beige-200 last:border-0">
+                                    <div>
+                                        <p class="font-medium text-brown-700">${e.title}</p>
+                                        <p class="text-xs text-brown-500">${(e.dates || [])[0] || 'No date'}</p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.status}</span>
                                 </div>
-                                <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status}</span>
-                            </div>
-                        `).join('') : '<p class="text-brown-500 text-center py-8">No events yet</p>'}
+                            `).join('') : '<p class="text-brown-500 text-center py-8">No events yet</p>'}
+                        </div>
+                        
+                        <div class="card p-6">
+                            <h3 class="font-bold text-brown-700 mb-4">Top Attendees</h3>
+                            ${insights.topAttendees.length > 0 ? insights.topAttendees.slice(0, 5).map((person, idx) => `
+                                <div class="flex justify-between items-center py-2 border-b border-beige-200 last:border-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-bold text-brown-500">${idx + 1}.</span>
+                                        <span class="text-sm text-brown-700">${person.name}</span>
+                                    </div>
+                                    <span class="text-xs text-brown-500">${person.count} events</span>
+                                </div>
+                            `).join('') : '<p class="text-brown-500 text-center py-4">No attendees yet</p>'}
+                        </div>
                     </div>
                 </div>
             `;
@@ -458,7 +491,7 @@ class MacroManage {
                 <div class="tab-content">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-2xl font-bold text-brown-700">Your Events</h2>
-                        <input type="text" id="searchEvents" placeholder="🔍 Search events..." class="input-field w-64" value="${this.searchQuery}" oninput="app.searchEvents(this.value)">
+                        <input type="text" id="searchEvents" placeholder="Search events..." class="input-field w-64" value="${this.searchQuery}" oninput="app.searchEvents(this.value)">
                     </div>
                     ${filteredEvents.length > 0 ? filteredEvents.map((e, idx) => {
                         const actualIdx = this.events.indexOf(e);
@@ -476,10 +509,10 @@ class MacroManage {
                                     <p class="text-sm text-brown-500">${(e.dates || []).length} dates · ${(e.friends || []).length} invited</p>
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    <button onclick="event.stopPropagation(); app.editEvent(${actualIdx})" class="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="Edit event">✏️ Edit</button>
+                                    <button onclick="event.stopPropagation(); app.editEvent(${actualIdx})" class="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="Edit event">Edit</button>
                                     <button onclick="event.stopPropagation(); app.showAddFriendsModal(${actualIdx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
-                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status || 'pending'}</span>
-                                    <button onclick="event.stopPropagation(); app.deleteEvent(${actualIdx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
+                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.status || 'pending'}</span>
+                                    <button onclick="event.stopPropagation(); app.deleteEvent(${actualIdx})" class="text-red-500 hover:text-red-700 transition-colors px-3 py-1 text-xs" title="Delete event">Delete</button>
                                 </div>
                             </div>
                             
@@ -568,18 +601,25 @@ class MacroManage {
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const today = new Date();
+                const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+                const currentDay = today.getDate();
+                
                 let cal = '';
                 for (let i = 0; i < firstDay; i++) cal += '<div></div>';
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                     const sel = this.selectedDates.includes(dateStr);
-                    cal += `<button onclick="app.toggleDate('${dateStr}')" class="date-pill aspect-square rounded-xl flex flex-col items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'}" data-date="${dateStr}">
-                        <span class="text-xs weather-icon" id="weather-${dateStr}">⏳</span>
+                    const isPast = isCurrentMonth && day < currentDay;
+                    const disabledClass = isPast ? 'opacity-40 cursor-not-allowed' : '';
+                    const clickHandler = isPast ? '' : `onclick="app.toggleDate('${dateStr}')"`;
+                    
+                    cal += `<button ${clickHandler} class="date-pill aspect-square rounded-xl flex flex-col items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'} ${disabledClass}" data-date="${dateStr}">
+                        <span class="text-xs weather-icon" id="weather-${dateStr}">...</span>
                         <span>${day}</span>
                     </button>`;
                 }
                 
-                // Load weather after rendering
                 setTimeout(() => this.loadWeatherForMonth(year, month), 100);
                 const slotsHtml = this.selectedDates.length > 0 ? `
                     <div class="mt-4 border-t border-beige-200 pt-4">
@@ -616,27 +656,77 @@ class MacroManage {
                     </div>
                 `;
             } else {
+                const allFriends = this.getAllFriends();
+                const groups = this.friendGroups || [];
+                
                 app.innerHTML = `
-                    <div class="card p-6 max-w-md mx-auto tab-content">
+                    <div class="card p-6 max-w-2xl mx-auto tab-content">
                         <h3 class="font-bold text-brown-700 mb-4 text-xl">Invite Friends</h3>
-                        <div class="flex gap-2 mb-3 relative">
-                            <div class="flex-1 relative">
-                                <input type="email" id="inviteEmail" placeholder="Email" class="input-field w-full" oninput="app.suggestEmails(this.value)" onkeypress="if(event.key==='Enter') app.addFriendEmail()">
-                                <div id="emailSuggestions" class="absolute top-full left-0 right-0 bg-white border border-beige-200 rounded-lg mt-1 shadow-lg z-10 hidden max-h-40 overflow-y-auto"></div>
+                        
+                        <div class="grid grid-cols-2 gap-6 mb-4">
+                            <!-- Saved Friends -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-brown-700 mb-2">Saved Friends</h4>
+                                <div class="max-h-48 overflow-y-auto space-y-1">
+                                    ${allFriends.length > 0 ? allFriends.map(f => {
+                                        const isAdded = this.currentEvent.friends.some(ef => ef.contact === f.email);
+                                        return `
+                                            <div class="flex justify-between items-center bg-beige-100 rounded-lg p-2 text-sm">
+                                                <span class="text-brown-700">${f.name} (${f.email})</span>
+                                                <button onclick="app.quickAddFriend('${f.email}', '${f.name}')" 
+                                                    class="px-2 py-1 text-xs rounded ${isAdded ? 'bg-green-500 text-white' : 'bg-brown-500 text-white hover:bg-brown-600'}">
+                                                    ${isAdded ? 'Added' : 'Add'}
+                                                </button>
+                                            </div>
+                                        `;
+                                    }).join('') : '<p class="text-sm text-brown-400">No saved friends yet</p>'}
+                                </div>
                             </div>
-                            <button onclick="app.addFriendEmail()" class="btn-primary px-4">Add</button>
+                            
+                            <!-- Friend Groups -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-brown-700 mb-2">Friend Groups</h4>
+                                <div class="max-h-48 overflow-y-auto space-y-1">
+                                    ${groups.length > 0 ? groups.map(g => `
+                                        <div class="bg-beige-100 rounded-lg p-2">
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="text-sm font-semibold text-brown-700">${g.name}</span>
+                                                <button onclick="app.addGroupToEvent('${g.name}')" 
+                                                    class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600">
+                                                    Add All
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-brown-500">${g.friends.length} members</p>
+                                        </div>
+                                    `).join('') : '<p class="text-sm text-brown-400">No groups yet</p>'}
+                                </div>
+                            </div>
                         </div>
+                        
+                        <!-- Manual Email Input -->
+                        <div class="border-t border-beige-200 pt-4 mb-4">
+                            <h4 class="text-sm font-semibold text-brown-700 mb-2">Add by Email</h4>
+                            <div class="flex gap-2">
+                                <input type="email" id="inviteEmail" placeholder="friend@email.com" class="input-field flex-1">
+                                <button onclick="app.addFriendEmail()" class="btn-primary px-4">Add</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Invited List -->
                         ${this.currentEvent.friends.length > 0 ? `
-                            <div class="mb-4">
-                                <p class="text-sm text-brown-600 mb-2">Invited (${this.currentEvent.friends.length}):</p>
-                                ${this.currentEvent.friends.map((f,i) => `
-                                    <div class="flex justify-between items-center bg-beige-100 rounded-lg p-2 mb-1 text-sm">
-                                        <span>${f.contact}</span>
-                                        <button onclick="app.removeEventFriend(${i})" class="text-red-500 hover:text-red-700 transition-colors">×</button>
-                                    </div>
-                                `).join('')}
+                            <div class="border-t border-beige-200 pt-4 mb-4">
+                                <p class="text-sm font-semibold text-brown-700 mb-2">Invited (${this.currentEvent.friends.length}):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${this.currentEvent.friends.map((f,i) => `
+                                        <div class="flex items-center gap-2 bg-green-100 text-green-700 rounded-full px-3 py-1 text-sm">
+                                            <span>${f.contact}</span>
+                                            <button onclick="app.removeEventFriend(${i})" class="text-red-500 hover:text-red-700 font-bold">×</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>
                         ` : ''}
+                        
                         <div class="flex gap-3">
                             <button onclick="app.goToStep(2)" class="btn-secondary flex-1">Back</button>
                             <button onclick="app.finishCreate()" class="btn-primary flex-1">Create & Notify</button>
@@ -1409,6 +1499,27 @@ class MacroManage {
         this.render();
     }
 
+    quickAddFriend(email, name) {
+        const exists = this.currentEvent.friends.some(f => f.contact === email);
+        if (!exists) {
+            this.currentEvent.friends.push({ type: 'email', contact: email, name: name || email });
+        }
+        this.render();
+    }
+    
+    addGroupToEvent(groupName) {
+        const group = this.friendGroups.find(g => g.name === groupName);
+        if (!group) return;
+        
+        group.friends.forEach(f => {
+            const exists = this.currentEvent.friends.some(ef => ef.contact === f.email);
+            if (!exists) {
+                this.currentEvent.friends.push({ type: 'email', contact: f.email, name: f.name });
+            }
+        });
+        this.render();
+    }
+    
     async finishCreate() {
         const event = { 
             ...this.currentEvent,
@@ -1426,12 +1537,14 @@ class MacroManage {
             friends: this.friends
         }));
         
+        // Add notification for event creation
+        this.addNotification('invite', `Event created: ${event.title} - ${event.friends.length} friends invited`, event.id);
+        
         await this.sendNotifications(event);
         
         this.currentEvent = null;
         this.selectedDates = [];
         this.dateTimeSlots = {};
-        alert('Event created and invitations sent!');
         this.navigate('events');
     }
 
