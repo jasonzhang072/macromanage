@@ -18,46 +18,20 @@ def hash_password(password):
     """Simple password hashing"""
     return hashlib.sha256(password.encode()).hexdigest()
 
-def send_mailjet_email(to_email, subject, html_body):
-    """Send email via Mailjet"""
-    if not MAILJET_API_KEY or not MAILJET_API_SECRET:
-        return {"success": False, "error": "Mailjet not configured"}
-    try:
-        import base64
-        data = json.dumps({
-            "Messages": [{
-                "From": {"Email": SENDER_EMAIL, "Name": "MacroManage"},
-                "To": [{"Email": to_email}],
-                "Subject": subject,
-                "HTMLPart": html_body
-            }]
-        }).encode('utf-8')
-        credentials = base64.b64encode(f"{MAILJET_API_KEY}:{MAILJET_SECRET_KEY}".encode()).decode()
-        req = urllib.request.Request(
-            "https://api.mailjet.com/v3.1/send",
-            data=data,
-            headers={
-                "Authorization": f"Basic {credentials}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return {"success": True, "provider": "mailjet"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
 def send_resend_email(to_email, subject, html_body):
-    """Send email via Resend"""
+    """Send email via Resend API"""
     if not RESEND_API_KEY:
-        return {"success": False, "error": "Resend not configured"}
+        print(f"Warning: RESEND_API_KEY not configured. Email to {to_email} not sent.")
+        return {"success": False, "error": "Resend API key not configured. Set RESEND_API_KEY in Vercel environment variables."}
+    
     try:
         data = json.dumps({
-            "from": "onboarding@resend.dev",
+            "from": SENDER_EMAIL,
             "to": [to_email],
             "subject": subject,
             "html": html_body
         }).encode('utf-8')
+        
         req = urllib.request.Request(
             "https://api.resend.com/emails",
             data=data,
@@ -67,9 +41,13 @@ def send_resend_email(to_email, subject, html_body):
             },
             method="POST"
         )
+        
         with urllib.request.urlopen(req, timeout=10) as response:
-            return {"success": True, "provider": "resend"}
+            result = json.loads(response.read().decode())
+            print(f"Email sent successfully to {to_email} via Resend")
+            return {"success": True, "provider": "resend", "id": result.get("id")}
     except Exception as e:
+        print(f"Error sending email to {to_email}: {str(e)}")
         return {"success": False, "error": str(e)}
 
 def generate_email_template(event, response_url):
@@ -253,9 +231,7 @@ class handler(BaseHTTPRequestHandler):
             response_url = f"https://{host}/respond.html?event={data.get('eventId')}&email={data.get('to')}"
             html = generate_email_template(event, response_url)
             
-            result = send_mailjet_email(data.get('to'), f"You're invited: {event['title']}", html)
-            if not result['success']:
-                result = send_resend_email(data.get('to'), f"You're invited: {event['title']}", html)
+            result = send_resend_email(data.get('to'), f"You're invited: {event['title']}", html)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -332,9 +308,7 @@ class handler(BaseHTTPRequestHandler):
 </table>
 </body></html>"""
             
-            result = send_mailjet_email(host_email, subject, html_body)
-            if not result['success']:
-                result = send_resend_email(host_email, subject, html_body)
+            result = send_resend_email(host_email, subject, html_body)
             
             # Return response data so frontend can store it
             result['response_data'] = response_data
@@ -385,9 +359,7 @@ class handler(BaseHTTPRequestHandler):
 </table>
 </body></html>"""
             
-            result = send_mailjet_email(to_email, subject, html_body)
-            if not result['success']:
-                result = send_resend_email(to_email, subject, html_body)
+            result = send_resend_email(to_email, subject, html_body)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')

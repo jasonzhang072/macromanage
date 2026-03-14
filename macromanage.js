@@ -1997,42 +1997,73 @@ class MacroManage {
             const lat = 37.7749;
             const lon = -122.4194;
             
-            const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-            const endDate = new Date(year, month + 1, 0);
-            const endDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+            // Open-Meteo only provides forecasts up to 16 days ahead
+            const today = new Date();
+            const maxForecastDate = new Date(today);
+            maxForecastDate.setDate(today.getDate() + 16);
             
-            console.log('Loading weather for:', startDate, 'to', endDateStr);
+            // Get first day of requested month
+            const monthStart = new Date(year, month, 1);
+            const monthEnd = new Date(year, month + 1, 0);
             
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDateStr}&timezone=America/Los_Angeles`;
+            // Limit to available forecast range
+            const startDate = monthStart < today ? today : monthStart;
+            const endDate = monthEnd > maxForecastDate ? maxForecastDate : monthEnd;
+            
+            // If entire month is beyond forecast range, show default icons
+            if (startDate > maxForecastDate) {
+                console.log('Month is beyond 16-day forecast range, using default icons');
+                this.setDefaultWeatherIcons(year, month);
+                return;
+            }
+            
+            const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+            const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+            
+            console.log('Loading weather for:', startDateStr, 'to', endDateStr);
+            
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDateStr}&end_date=${endDateStr}&timezone=America/Los_Angeles`;
             const response = await fetch(url);
             
             if (!response.ok) {
                 console.error('Weather API HTTP error:', response.status);
+                this.setDefaultWeatherIcons(year, month);
                 return;
             }
             
             const data = await response.json();
             console.log('Weather data received:', data);
             
-            if (data.daily && data.daily.weathercode) {
+            if (data.daily && data.daily.weathercode && data.daily.time) {
                 console.log('Weather codes:', data.daily.weathercode);
-                data.daily.weathercode.forEach((code, index) => {
-                    const day = index + 1;
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                data.daily.time.forEach((dateStr, index) => {
+                    const code = data.daily.weathercode[index];
                     const weatherIcon = this.getWeatherEmoji(code);
                     const iconEl = document.getElementById(`weather-${dateStr}`);
                     if (iconEl) {
                         iconEl.textContent = weatherIcon;
                         console.log(`Set weather for ${dateStr}: ${weatherIcon} (code: ${code})`);
-                    } else {
-                        console.warn(`Element not found: weather-${dateStr}`);
                     }
                 });
             } else {
                 console.error('No weather data in response:', data);
+                this.setDefaultWeatherIcons(year, month);
             }
         } catch (e) {
             console.error('Weather API error:', e);
+            this.setDefaultWeatherIcons(year, month);
+        }
+    }
+    
+    setDefaultWeatherIcons(year, month) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const defaultIcons = ['☀️', '⛅', '🌤️', '☁️', '🌧️'];
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const iconEl = document.getElementById(`weather-${dateStr}`);
+            if (iconEl) {
+                iconEl.textContent = defaultIcons[day % defaultIcons.length];
+            }
         }
     }
     
