@@ -1,19 +1,28 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-import urllib.request
-import urllib.error
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse, parse_qs
+import requests
+import hashlib
+import time
 
-# Environment variables from Vercel
+# Load environment variables
 MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '')
-MAILJET_SECRET_KEY = os.environ.get('MAILJET_API_SECRET', '')
+MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET', '')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'jasonzhang072@gmail.com')
 
+# Simple in-memory database (in production, use a real database)
+users_db = {}
+user_data_db = {}
+
+def hash_password(password):
+    """Simple password hashing"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
 def send_mailjet_email(to_email, subject, html_body):
     """Send email via Mailjet"""
-    if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
+    if not MAILJET_API_KEY or not MAILJET_API_SECRET:
         return {"success": False, "error": "Mailjet not configured"}
     try:
         import base64
@@ -156,6 +165,84 @@ class handler(BaseHTTPRequestHandler):
             data = json.loads(body) if body else {}
         except:
             data = {}
+        
+        if parsed.path == '/api/signup':
+            email = data.get('email')
+            password = data.get('password')
+            name = data.get('name')
+            
+            if email in users_db:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "message": "Email already registered"}).encode())
+                return
+            
+            users_db[email] = {
+                'email': email,
+                'password': hash_password(password),
+                'name': name
+            }
+            user_data_db[email] = {'events': []}
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "success": True,
+                "user": {"email": email, "name": name}
+            }).encode())
+            return
+        
+        if parsed.path == '/api/login':
+            email = data.get('email')
+            password = data.get('password')
+            
+            if email not in users_db:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "message": "Email not found"}).encode())
+                return
+            
+            user = users_db[email]
+            if user['password'] != hash_password(password):
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "message": "Incorrect password"}).encode())
+                return
+            
+            user_data = user_data_db.get(email, {'events': []})
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "success": True,
+                "user": {"email": email, "name": user['name']},
+                "events": user_data.get('events', [])
+            }).encode())
+            return
+        
+        if parsed.path == '/api/save-data':
+            email = data.get('email')
+            events = data.get('events', [])
+            
+            if email in user_data_db:
+                user_data_db[email]['events'] = events
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True}).encode())
+            return
         
         if parsed.path == '/api/send-email':
             event = {

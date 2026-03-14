@@ -47,7 +47,11 @@
             <div class="w-10 h-10 rounded-full bg-brown-500 flex items-center justify-center text-white font-bold">M</div>
             <span class="text-lg font-semibold text-brown-700">MacroManage</span>
         </div>
-        <div class="text-2xl cursor-pointer">🔔</div>
+        <div class="flex items-center gap-4">
+            <span id="userEmail" class="text-sm text-brown-600"></span>
+            <button id="logoutBtn" onclick="app.logout()" class="text-sm text-brown-600 hover:text-brown-800 hidden">Logout</button>
+            <div class="text-2xl cursor-pointer">🔔</div>
+        </div>
     </div>
 
     <!-- Navigation Bar -->

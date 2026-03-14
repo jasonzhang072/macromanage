@@ -1,10 +1,9 @@
 class MacroManage {
     constructor() {
-        console.log('🚀 MacroManage v1.2.0 - Email Fix Deployed');
+        console.log('🚀 MacroManage v1.3.0 - Auth & Email History');
         this.currentTab = 'dashboard';
-        this.user = { name: 'Guest User', email: 'jasonzhang072@gmail.com', friends: [] };
-        // Load events from localStorage
-        this.events = this.loadEvents();
+        this.user = null;
+        this.events = [];
         this.currentEvent = {};
         this.currentStep = 1;
         this.selectedDates = [];
@@ -14,8 +13,144 @@ class MacroManage {
         this.calendarMonth = new Date();
         this.API_URL = window.location.origin || 'http://localhost:3000';
         console.log('✅ API_URL initialized:', this.API_URL);
-        this.insights = this.calculateInsights();
-        this.navigate('dashboard');
+        
+        // Check if user is logged in
+        this.checkAuth();
+    }
+    
+    checkAuth() {
+        const session = localStorage.getItem('user_session');
+        if (session) {
+            try {
+                const userData = JSON.parse(session);
+                this.user = userData.user;
+                this.events = userData.events || [];
+                this.insights = this.calculateInsights();
+                this.navigate('dashboard');
+            } catch (e) {
+                console.error('Invalid session:', e);
+                this.showLoginScreen();
+            }
+        } else {
+            this.showLoginScreen();
+        }
+    }
+    
+    showLoginScreen() {
+        const app = document.getElementById('app');
+        app.innerHTML = `
+            <div class="min-h-screen flex items-center justify-center bg-beige-100 p-4">
+                <div class="card p-8 max-w-md w-full">
+                    <h1 class="text-3xl font-bold text-brown-700 mb-2 text-center">MacroManage</h1>
+                    <p class="text-brown-600 text-center mb-6">Plan events with friends</p>
+                    
+                    <div id="authForm">
+                        <div class="mb-4">
+                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Email</label>
+                            <input type="email" id="authEmail" placeholder="your@email.com" class="input-field" onkeypress="if(event.key==='Enter') document.getElementById('authPassword').focus()">
+                        </div>
+                        <div class="mb-4">
+                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Password</label>
+                            <input type="password" id="authPassword" placeholder="••••••••" class="input-field" onkeypress="if(event.key==='Enter') app.login()">
+                        </div>
+                        <div class="mb-6">
+                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Name (for signup)</label>
+                            <input type="text" id="authName" placeholder="Your Name" class="input-field">
+                        </div>
+                        
+                        <div id="authError" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm"></div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="app.login()" class="btn-primary flex-1">Login</button>
+                            <button onclick="app.signup()" class="btn-secondary flex-1">Sign Up</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async login() {
+        const email = document.getElementById('authEmail')?.value;
+        const password = document.getElementById('authPassword')?.value;
+        const errorDiv = document.getElementById('authError');
+        
+        if (!email || !password) {
+            this.showAuthError('Please enter email and password');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${this.API_URL}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                this.user = data.user;
+                this.events = data.events || [];
+                localStorage.setItem('user_session', JSON.stringify({ user: data.user, events: data.events }));
+                this.insights = this.calculateInsights();
+                this.navigate('dashboard');
+            } else {
+                this.showAuthError(data.message || 'Login failed');
+            }
+        } catch (e) {
+            console.error('Login error:', e);
+            this.showAuthError('Connection error. Please try again.');
+        }
+    }
+    
+    async signup() {
+        const email = document.getElementById('authEmail')?.value;
+        const password = document.getElementById('authPassword')?.value;
+        const name = document.getElementById('authName')?.value;
+        
+        if (!email || !password || !name) {
+            this.showAuthError('Please fill in all fields');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${this.API_URL}/api/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, name })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                this.user = data.user;
+                this.events = [];
+                localStorage.setItem('user_session', JSON.stringify({ user: data.user, events: [] }));
+                this.insights = this.calculateInsights();
+                this.navigate('dashboard');
+            } else {
+                this.showAuthError(data.message || 'Signup failed');
+            }
+        } catch (e) {
+            console.error('Signup error:', e);
+            this.showAuthError('Connection error. Please try again.');
+        }
+    }
+    
+    showAuthError(message) {
+        const errorDiv = document.getElementById('authError');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    }
+    
+    logout() {
+        localStorage.removeItem('user_session');
+        this.user = null;
+        this.events = [];
+        this.showLoginScreen();
     }
     
     loadEvents() {
@@ -28,9 +163,23 @@ class MacroManage {
         }
     }
     
-    saveEvents() {
+    async saveEvents() {
         try {
-            localStorage.setItem('macromanage_events', JSON.stringify(this.events));
+            // Save to localStorage for immediate access
+            const session = { user: this.user, events: this.events };
+            localStorage.setItem('user_session', JSON.stringify(session));
+            
+            // Sync to backend
+            if (this.user && this.user.email) {
+                await fetch(`${this.API_URL}/api/save-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: this.user.email,
+                        events: this.events
+                    })
+                }).catch(e => console.error('Sync error:', e));
+            }
         } catch (e) {
             console.error('Error saving events:', e);
         }
@@ -231,6 +380,16 @@ class MacroManage {
         }
         this.render();
         this.updateTab();
+        this.updateUserDisplay();
+    }
+    
+    updateUserDisplay() {
+        const userEmailEl = document.getElementById('userEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (this.user && userEmailEl && logoutBtn) {
+            userEmailEl.textContent = this.user.email;
+            logoutBtn.classList.remove('hidden');
+        }
     }
 
     updateTab() {
@@ -454,8 +613,11 @@ class MacroManage {
                 app.innerHTML = `
                     <div class="card p-6 max-w-md mx-auto tab-content">
                         <h3 class="font-bold text-brown-700 mb-4 text-xl">Invite Friends</h3>
-                        <div class="flex gap-2 mb-3">
-                            <input type="email" id="inviteEmail" placeholder="Email" class="input-field flex-1">
+                        <div class="flex gap-2 mb-3 relative">
+                            <div class="flex-1 relative">
+                                <input type="email" id="inviteEmail" placeholder="Email" class="input-field w-full" oninput="app.suggestEmails(this.value)" onkeypress="if(event.key==='Enter') app.addFriendEmail()">
+                                <div id="emailSuggestions" class="absolute top-full left-0 right-0 bg-white border border-beige-200 rounded-lg mt-1 shadow-lg z-10 hidden max-h-40 overflow-y-auto"></div>
+                            </div>
                             <button onclick="app.addFriendEmail()" class="btn-primary px-4">Add</button>
                         </div>
                         ${this.currentEvent.friends.length > 0 ? `
@@ -1118,8 +1280,70 @@ class MacroManage {
         const email = input ? input.value : '';
         if (!email.includes('@')) { alert('Enter valid email'); return; }
         this.currentEvent.friends.push({ type: 'email', contact: email, name: email.split('@')[0] });
+        
+        // Save to email history
+        this.saveEmailToHistory(email);
+        
         if (input) input.value = '';
         this.render();
+    }
+    
+    saveEmailToHistory(email) {
+        try {
+            const history = JSON.parse(localStorage.getItem('email_history') || '[]');
+            if (!history.includes(email)) {
+                history.unshift(email); // Add to beginning
+                // Keep only last 50 emails
+                if (history.length > 50) history.pop();
+                localStorage.setItem('email_history', JSON.stringify(history));
+            }
+        } catch (e) {
+            console.error('Error saving email history:', e);
+        }
+    }
+    
+    getEmailHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('email_history') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    suggestEmails(query) {
+        const suggestionsDiv = document.getElementById('emailSuggestions');
+        if (!suggestionsDiv) return;
+        
+        if (!query || query.length < 1) {
+            suggestionsDiv.classList.add('hidden');
+            return;
+        }
+        
+        const history = this.getEmailHistory();
+        const matches = history.filter(email => 
+            email.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 5);
+        
+        if (matches.length === 0) {
+            suggestionsDiv.classList.add('hidden');
+            return;
+        }
+        
+        suggestionsDiv.innerHTML = matches.map(email => `
+            <div class="p-2 hover:bg-beige-100 cursor-pointer text-sm text-brown-700" onclick="app.selectEmail('${email}')">
+                ${email}
+            </div>
+        `).join('');
+        suggestionsDiv.classList.remove('hidden');
+    }
+    
+    selectEmail(email) {
+        const input = document.getElementById('inviteEmail');
+        if (input) {
+            input.value = email;
+            const suggestionsDiv = document.getElementById('emailSuggestions');
+            if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
+        }
     }
 
     removeEventFriend(i) {
