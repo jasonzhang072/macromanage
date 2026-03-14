@@ -517,11 +517,7 @@ class MacroManage {
                         <div class="space-y-4">
                             <input type="text" id="eventTitle" placeholder="Event Title" class="input-field">
                             <input type="number" id="eventBudget" placeholder="Budget per person ($)" class="input-field">
-                            <div class="relative">
-                                <input type="text" id="eventLocation" placeholder="Start typing address..." class="input-field" oninput="app.suggestAddresses(this.value)">
-                                <div id="addressSuggestions" class="absolute top-full left-0 right-0 bg-white border border-beige-200 rounded-lg mt-1 shadow-lg z-10 hidden"></div>
-                            </div>
-                            <div id="locationStatus" class="text-sm text-brown-500 mt-1"></div>
+                            <input type="text" id="eventLocation" placeholder="Location (address, venue, etc.)" class="input-field">
                             
                             <!-- Poll Options -->
                             <div class="border-t border-beige-200 pt-4 mt-4">
@@ -882,23 +878,8 @@ class MacroManage {
         const reminder1day = document.getElementById('reminder1day');
         const reminder1hour = document.getElementById('reminder1hour');
         const reminderSummary = document.getElementById('reminderSummary');
-        const locationStatus = document.getElementById('locationStatus');
         
         if (!title || !title.value.trim()) { alert('Enter event title'); return; }
-        
-        // Validate address if provided
-        if (location && location.value.trim()) {
-            const address = location.value.trim();
-            // Simple address validation - check if it looks like an address
-            if (!this.isValidAddress(address)) {
-                if (locationStatus) locationStatus.textContent = 'Not found - Please enter a valid address';
-                if (locationStatus) locationStatus.className = 'text-sm text-red-500 mt-1';
-                return;
-            } else {
-                if (locationStatus) locationStatus.textContent = 'Address found ✓';
-                if (locationStatus) locationStatus.className = 'text-sm text-green-500 mt-1';
-            }
-        }
         
         this.currentEvent.title = title.value;
         this.currentEvent.budget = budget ? budget.value : '';
@@ -912,15 +893,9 @@ class MacroManage {
         this.goToStep(2);
     }
 
-    isValidAddress(address) {
-        // Accept any reasonably formatted address
-        const hasNumber = /\d/.test(address);
-        const hasStreet = address.length > 8;
-        const hasWords = address.split(' ').length >= 2;
-        return hasNumber && hasStreet && hasWords;
-    }
-
-    suggestAddresses(query) {
+    // Address suggestion feature removed - using simple text input instead
+    
+    saveStep2() {
         const suggestionsDiv = document.getElementById('addressSuggestions');
         const locationInput = document.getElementById('eventLocation');
         const locationStatus = document.getElementById('locationStatus');
