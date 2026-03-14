@@ -1581,12 +1581,16 @@ class MacroManage {
                     
                     const result = await emailRes.json();
                     
+                    console.log(`[EMAIL API RESPONSE] Status: ${emailRes.status}, Success: ${result.success}`);
+                    console.log(`[EMAIL API RESPONSE] Full result:`, result);
+                    console.log(`[EMAIL API RESPONSE] Error: ${result.error || 'None'}`);
+                    
                     if (emailRes.ok && result.success) {
-                        console.log('Email sent successfully to:', friend.contact);
+                        console.log('✅ Email sent successfully to:', friend.contact);
                         results.push({ success: true, email: friend.contact });
                         apiWorked = true;
                     } else {
-                        console.warn('Email API error for:', friend.contact, result.error);
+                        console.warn('❌ Email API error for:', friend.contact, result.error);
                         results.push({ success: false, email: friend.contact, error: result.error });
                     }
                 } catch (e) {
