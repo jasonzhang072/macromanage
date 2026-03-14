@@ -1,8 +1,8 @@
 class MacroManage {
     constructor() {
-        console.log('🚀 MacroManage v2.0.0 - Feature Pack');
+        console.log('MacroManage v3.0.0 - Enhanced');
         this.currentTab = 'dashboard';
-        this.user = { name: 'User', email: 'user@macromanage.com' }; // Default user
+        this.user = { name: 'User', email: 'user@macromanage.com' };
         this.events = this.loadEvents();
         this.currentEvent = {};
         this.currentStep = 1;
@@ -14,15 +14,11 @@ class MacroManage {
         this.API_URL = window.location.origin || 'http://localhost:3000';
         this.friendGroups = this.loadFriendGroups();
         this.searchQuery = '';
-        console.log('✅ API_URL initialized:', this.API_URL);
+        this.notifications = this.loadNotifications();
         
-        // Load dark mode preference
         this.loadDarkMode();
-        
-        // Calculate insights
         this.insights = this.calculateInsights();
-        
-        // Start app directly - no auth needed
+        this.updateNotificationBadge();
         this.navigate('dashboard');
     }
     
@@ -465,14 +461,14 @@ class MacroManage {
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                     const sel = this.selectedDates.includes(dateStr);
-                    const dayOfWeek = new Date(dateStr).getDay();
-                    const weatherEmojis = ['☀️', '⛅', '☁️', '🌧️', '⛈️', '🌤️', '🌥️'];
-                    const weather = weatherEmojis[dayOfWeek % weatherEmojis.length];
-                    cal += `<button onclick="app.toggleDate('${dateStr}')" class="date-pill aspect-square rounded-xl flex flex-col items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'}">
-                        <span class="text-xs">${weather}</span>
+                    cal += `<button onclick="app.toggleDate('${dateStr}')" class="date-pill aspect-square rounded-xl flex flex-col items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'}" data-date="${dateStr}">
+                        <span class="text-xs weather-icon" id="weather-${dateStr}">⏳</span>
                         <span>${day}</span>
                     </button>`;
                 }
+                
+                // Load weather after rendering
+                setTimeout(() => this.loadWeatherForMonth(year, month), 100);
                 const slotsHtml = this.selectedDates.length > 0 ? `
                     <div class="mt-4 border-t border-beige-200 pt-4">
                         <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
@@ -1770,16 +1766,51 @@ class MacroManage {
         this.render();
     }
     
-    // Weather API Integration (using Open-Meteo free API)
-    async getWeatherForDate(date, location) {
+    // Real Weather API Integration using Open-Meteo (free, no API key needed)
+    async loadWeatherForMonth(year, month) {
         try {
-            // Simple weather emoji based on date (mock for now - would need geocoding + weather API)
-            const dayOfWeek = new Date(date).getDay();
-            const weatherEmojis = ['☀️', '⛅', '☁️', '🌧️', '⛈️'];
-            return weatherEmojis[dayOfWeek % weatherEmojis.length];
+            // Default to San Francisco coordinates (can be made dynamic later)
+            const lat = 37.7749;
+            const lon = -122.4194;
+            
+            const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+            const endDate = new Date(year, month + 1, 0);
+            const endDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+            
+            const response = await fetch(
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDateStr}&timezone=America/Los_Angeles`
+            );
+            
+            const data = await response.json();
+            
+            if (data.daily && data.daily.weathercode) {
+                data.daily.weathercode.forEach((code, index) => {
+                    const day = index + 1;
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const weatherIcon = this.getWeatherEmoji(code);
+                    const iconEl = document.getElementById(`weather-${dateStr}`);
+                    if (iconEl) {
+                        iconEl.textContent = weatherIcon;
+                    }
+                });
+            }
         } catch (e) {
-            return '🌤️';
+            console.error('Weather API error:', e);
         }
+    }
+    
+    getWeatherEmoji(weatherCode) {
+        // WMO Weather interpretation codes
+        // 0: Clear sky, 1-3: Mainly clear/partly cloudy, 45-48: Fog
+        // 51-67: Rain, 71-77: Snow, 80-99: Rain showers/thunderstorm
+        if (weatherCode === 0) return '☀️';
+        if (weatherCode <= 3) return '⛅';
+        if (weatherCode <= 48) return '🌫️';
+        if (weatherCode <= 67) return '🌧️';
+        if (weatherCode <= 77) return '❄️';
+        if (weatherCode <= 82) return '🌦️';
+        if (weatherCode <= 99) return '⛈️';
+        return '🌤️';
     }
     
     // Friends Management
