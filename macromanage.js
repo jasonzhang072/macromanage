@@ -554,10 +554,10 @@ class MacroManage {
                             
                             ${responses.length > 0 ? `
                                 <div class="border-t border-beige-200 pt-3 mt-3">
-                                    <p class="text-sm font-semibold text-brown-700 mb-2">✅ Responses: ${responses.length} accepted, ${declined.length} declined</p>
+                                    <p class="text-sm font-semibold text-brown-700 mb-2">Responses: ${responses.length} accepted, ${declined.length} declined</p>
                                     ${suggested.length > 0 ? `
                                         <div class="bg-green-50 rounded-lg p-3 mb-3">
-                                            <p class="text-sm font-semibold text-green-700 mb-2">🎯 Suggested Times (${suggested[0].count}/${responses.length} available):</p>
+                                            <p class="text-sm font-semibold text-green-700 mb-2">Suggested Times (${suggested[0].count}/${responses.length} available):</p>
                                             ${suggested.slice(0, 3).map(s => `
                                                 <div class="flex justify-between items-center mb-1">
                                                     <span class="text-sm text-green-800">${s.date} · ${s.start} - ${s.end}</span>
@@ -571,7 +571,7 @@ class MacroManage {
                             
                             ${e.eventType === 'poll' && totalVotes > 0 ? `
                                 <div class="border-t border-beige-200 pt-3 mt-3">
-                                    <p class="text-sm font-semibold text-brown-700 mb-2">📊 Poll Results (${totalVotes} votes):</p>
+                                    <p class="text-sm font-semibold text-brown-700 mb-2">Poll Results (${totalVotes} votes):</p>
                                     ${Object.entries(pollResults).sort((a, b) => b[1] - a[1]).map(([option, count]) => `
                                         <div class="flex items-center gap-2 mb-2">
                                             <div class="flex-1 bg-beige-100 rounded-full h-6 overflow-hidden">
@@ -604,7 +604,7 @@ class MacroManage {
                             
                             <!-- Poll Options -->
                             <div class="border-t border-beige-200 pt-4 mt-4">
-                                <label class="text-sm font-semibold text-brown-700 mb-2 block">📊 Event Type</label>
+                                <label class="text-sm font-semibold text-brown-700 mb-2 block">Event Type</label>
                                 <select id="eventType" class="input-field" onchange="app.togglePollMode(this.value)">
                                     <option value="single">Single Event</option>
                                     <option value="poll">Poll (Let friends vote on activity options)</option>
@@ -620,7 +620,7 @@ class MacroManage {
                             
                             <!-- Smart Reminders -->
                             <div class="border-t border-beige-200 pt-4 mt-4">
-                                <label class="text-sm font-semibold text-brown-700 mb-2 block">🔔 Smart Reminders</label>
+                                <label class="text-sm font-semibold text-brown-700 mb-2 block">Smart Reminders</label>
                                 <div class="space-y-2">
                                     <label class="flex items-center gap-2 text-sm text-brown-600">
                                         <input type="checkbox" id="reminder1day" checked class="rounded">
@@ -632,7 +632,7 @@ class MacroManage {
                                     </label>
                                     <label class="flex items-center gap-2 text-sm text-brown-600">
                                         <input type="checkbox" id="reminderSummary" checked class="rounded">
-                                        <span>Push summaries (e.g., "3 friends confirmed, 2 maybe") 📊</span>
+                                        <span>Push summaries (e.g., "3 friends confirmed, 2 maybe")</span>
                                     </label>
                                 </div>
                             </div>
@@ -652,7 +652,13 @@ class MacroManage {
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                     const sel = this.selectedDates.includes(dateStr);
-                    cal += `<button onclick="app.toggleDate('${dateStr}')" class="date-pill aspect-square rounded-xl flex items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'}">${day}</button>`;
+                    const dayOfWeek = new Date(dateStr).getDay();
+                    const weatherEmojis = ['☀️', '⛅', '☁️', '🌧️', '⛈️', '🌤️', '🌥️'];
+                    const weather = weatherEmojis[dayOfWeek % weatherEmojis.length];
+                    cal += `<button onclick="app.toggleDate('${dateStr}')" class="date-pill aspect-square rounded-xl flex flex-col items-center justify-center font-medium text-sm ${sel ? 'bg-brown-500 text-white' : 'bg-beige-200 text-brown-600'}">
+                        <span class="text-xs">${weather}</span>
+                        <span>${day}</span>
+                    </button>`;
                 }
                 const slotsHtml = this.selectedDates.length > 0 ? `
                     <div class="mt-4 border-t border-beige-200 pt-4">
@@ -761,7 +767,7 @@ class MacroManage {
             const insights = this.calculateInsights();
             app.innerHTML = `
                 <div class="tab-content">
-                    <h2 class="text-2xl font-bold text-brown-700 mb-6">📊 Activity Insights</h2>
+                    <h2 class="text-2xl font-bold text-brown-700 mb-6">Activity Insights</h2>
                     
                     <div class="grid grid-cols-3 gap-4 mb-6">
                         <div class="card p-6 text-center">
@@ -817,6 +823,79 @@ class MacroManage {
                             </div>
                             <p class="text-sm text-brown-500 text-center mt-4">Your activity throughout the week</p>
                         ` : '<p class="text-brown-500 text-center py-8">Create events to see your weekly activity trends</p>'}
+                    </div>
+                </div>
+            `;
+        } else if (this.currentTab === 'friends') {
+            const allFriends = this.getAllFriends();
+            
+            app.innerHTML = `
+                <div class="tab-content">
+                    <h2 class="text-2xl font-bold text-brown-700 mb-4">Friends & Groups</h2>
+                    
+                    <!-- Add Friend Section -->
+                    <div class="card p-6 mb-4">
+                        <h3 class="text-lg font-semibold text-brown-700 mb-3">Add Friend</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="friendName" placeholder="Friend's Name" class="input-field flex-1">
+                            <input type="email" id="friendEmail" placeholder="Email" class="input-field flex-1">
+                            <button onclick="app.addFriendToList()" class="btn-primary">Add</button>
+                        </div>
+                    </div>
+                    
+                    <!-- All Friends List -->
+                    <div class="card p-6 mb-4">
+                        <h3 class="text-lg font-semibold text-brown-700 mb-3">All Friends (${allFriends.length})</h3>
+                        <div class="space-y-2 max-h-64 overflow-y-auto">
+                            ${allFriends.length > 0 ? allFriends.map((f, idx) => `
+                                <div class="flex justify-between items-center bg-beige-100 p-3 rounded-lg">
+                                    <div>
+                                        <p class="font-semibold text-brown-700">${f.name}</p>
+                                        <p class="text-sm text-brown-500">${f.email}</p>
+                                    </div>
+                                    <button onclick="app.removeFriend(${idx})" class="text-red-500 hover:text-red-700">Remove</button>
+                                </div>
+                            `).join('') : '<p class="text-brown-400 text-center py-4">No friends added yet</p>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Groups Section -->
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-brown-700 mb-3">Groups (${this.friendGroups.length})</h3>
+                        
+                        <!-- Create Group -->
+                        <div class="mb-4 p-4 bg-beige-100 rounded-lg">
+                            <h4 class="text-sm font-semibold text-brown-700 mb-2">Create New Group</h4>
+                            <input type="text" id="groupName" placeholder="Group Name (e.g., College Friends)" class="input-field mb-2">
+                            <p class="text-xs text-brown-500 mb-2">Select friends to add:</p>
+                            <div class="space-y-1 mb-3 max-h-32 overflow-y-auto">
+                                ${allFriends.map((f, idx) => `
+                                    <label class="flex items-center gap-2 text-sm text-brown-700">
+                                        <input type="checkbox" class="group-friend-checkbox" data-friend-idx="${idx}">
+                                        ${f.name} (${f.email})
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <button onclick="app.createGroup()" class="btn-primary w-full">Create Group</button>
+                        </div>
+                        
+                        <!-- Existing Groups -->
+                        <div class="space-y-3">
+                            ${this.friendGroups.length > 0 ? this.friendGroups.map((g, idx) => `
+                                <div class="border border-beige-200 p-3 rounded-lg">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h4 class="font-semibold text-brown-700">${g.name}</h4>
+                                        <button onclick="app.deleteGroup(${idx})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                                    </div>
+                                    <p class="text-xs text-brown-500 mb-2">${g.friends.length} members</p>
+                                    <div class="space-y-1">
+                                        ${g.friends.map(f => `
+                                            <div class="text-xs bg-white px-2 py-1 rounded">${f.name || f.contact}</div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('') : '<p class="text-brown-400 text-center py-4">No groups created yet</p>'}
+                        </div>
                     </div>
                 </div>
             `;
@@ -1656,7 +1735,7 @@ class MacroManage {
                     <!-- Map View -->
                     ${event.location ? `
                         <div class="mb-6">
-                            <h3 class="text-lg font-semibold text-brown-700 mb-2">📍 Location</h3>
+                            <h3 class="text-lg font-semibold text-brown-700 mb-2">Location</h3>
                             <p class="text-sm text-brown-600 mb-2">${event.location}</p>
                             <iframe width="100%" height="300" frameborder="0" style="border:0; border-radius:12px;" 
                                 src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(event.location)}" 
@@ -1666,7 +1745,7 @@ class MacroManage {
                     
                     <!-- Expense Splitting -->
                     <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-brown-700 mb-2">💰 Expense Splitting</h3>
+                        <h3 class="text-lg font-semibold text-brown-700 mb-2">Expense Splitting</h3>
                         <div class="bg-beige-100 rounded-lg p-4 mb-3">
                             <p class="text-sm font-semibold text-brown-700">Total: $${totalExpenses.toFixed(2)}</p>
                             <p class="text-xs text-brown-600">Per person: $${((totalExpenses / (event.friends?.length || 1))).toFixed(2)}</p>
@@ -1684,7 +1763,7 @@ class MacroManage {
                     
                     <!-- Carpool Coordination -->
                     <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-brown-700 mb-2">🚗 Carpool</h3>
+                        <h3 class="text-lg font-semibold text-brown-700 mb-2">Carpool</h3>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <p class="text-xs font-semibold text-brown-700 mb-2">Drivers (${carpool.drivers.length})</p>
@@ -1806,6 +1885,101 @@ class MacroManage {
         } catch (e) {
             return '🌤️';
         }
+    }
+    
+    // Friends Management
+    getAllFriends() {
+        const friendsSet = new Map();
+        
+        // Get friends from localStorage
+        const savedFriends = JSON.parse(localStorage.getItem('all_friends') || '[]');
+        savedFriends.forEach(f => friendsSet.set(f.email, f));
+        
+        // Get friends from events
+        this.events.forEach(event => {
+            (event.friends || []).forEach(friend => {
+                if (!friendsSet.has(friend.contact)) {
+                    friendsSet.set(friend.contact, {
+                        name: friend.name || friend.contact.split('@')[0],
+                        email: friend.contact
+                    });
+                }
+            });
+        });
+        
+        return Array.from(friendsSet.values());
+    }
+    
+    addFriendToList() {
+        const name = document.getElementById('friendName')?.value.trim();
+        const email = document.getElementById('friendEmail')?.value.trim();
+        
+        if (!name || !email) {
+            alert('Please enter both name and email');
+            return;
+        }
+        
+        const allFriends = this.getAllFriends();
+        if (allFriends.some(f => f.email === email)) {
+            alert('Friend already exists!');
+            return;
+        }
+        
+        allFriends.push({ name, email });
+        localStorage.setItem('all_friends', JSON.stringify(allFriends));
+        
+        this.render();
+    }
+    
+    removeFriend(idx) {
+        if (!confirm('Remove this friend?')) return;
+        
+        const allFriends = this.getAllFriends();
+        allFriends.splice(idx, 1);
+        localStorage.setItem('all_friends', JSON.stringify(allFriends));
+        
+        this.render();
+    }
+    
+    createGroup() {
+        const groupName = document.getElementById('groupName')?.value.trim();
+        if (!groupName) {
+            alert('Please enter a group name');
+            return;
+        }
+        
+        const checkboxes = document.querySelectorAll('.group-friend-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert('Please select at least one friend');
+            return;
+        }
+        
+        const allFriends = this.getAllFriends();
+        const selectedFriends = Array.from(checkboxes).map(cb => {
+            const idx = parseInt(cb.dataset.friendIdx);
+            const friend = allFriends[idx];
+            return {
+                name: friend.name,
+                contact: friend.email,
+                type: 'email'
+            };
+        });
+        
+        this.friendGroups.push({
+            name: groupName,
+            friends: selectedFriends
+        });
+        
+        this.saveFriendGroups();
+        this.render();
+    }
+    
+    deleteGroup(idx) {
+        if (!confirm('Delete this group?')) return;
+        
+        this.friendGroups.splice(idx, 1);
+        this.saveFriendGroups();
+        this.render();
     }
 }
 

@@ -40,7 +40,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         /* Dark Mode */
-        body.dark-mode { background: #1a1a1a; color: #e0e0e0; }
+        body.dark-mode { background: #1a1a1a !important; color: #e0e0e0; }
         body.dark-mode .card { background: #2a2a2a; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
         body.dark-mode .nav-box { background: #2a2a2a; color: #e0e0e0; }
         body.dark-mode .nav-box.active { background: #B8956E; color: white; }
@@ -52,9 +52,17 @@
         body.dark-mode .text-brown-700 { color: #d4a574 !important; }
         body.dark-mode .text-brown-600 { color: #c4956e !important; }
         body.dark-mode .text-brown-500 { color: #b8956e !important; }
+        body.dark-mode .text-brown-400 { color: #a4856e !important; }
         body.dark-mode .bg-beige-100 { background: #3a3a3a !important; }
         body.dark-mode .bg-beige-200 { background: #4a4a4a !important; }
         body.dark-mode .border-beige-200 { border-color: #4a4a4a !important; }
+        body.dark-mode .bg-green-50 { background: #1a3a1a !important; }
+        body.dark-mode .bg-green-100 { background: #2a4a2a !important; }
+        body.dark-mode .bg-yellow-100 { background: #4a4a1a !important; }
+        body.dark-mode .bg-red-100 { background: #4a1a1a !important; }
+        body.dark-mode .text-green-700 { color: #6ade6a !important; }
+        body.dark-mode .text-yellow-700 { color: #dede6a !important; }
+        body.dark-mode .text-red-700 { color: #de6a6a !important; }
     </style>
 </head>
 <body class="min-h-screen" style="background: #FDF6E9;">
@@ -68,7 +76,6 @@
             <button id="darkModeToggle" onclick="app.toggleDarkMode()" class="text-2xl cursor-pointer" title="Toggle Dark Mode">🌙</button>
             <span id="userEmail" class="text-sm text-brown-600"></span>
             <button id="logoutBtn" onclick="app.logout()" class="text-sm text-brown-600 hover:text-brown-800 hidden">Logout</button>
-            <div class="text-2xl cursor-pointer">🔔</div>
         </div>
     </div>
 
@@ -77,6 +84,7 @@
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="dashboard" onclick="app.navigate('dashboard')">Dashboard</button>
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="events" onclick="app.navigate('events')">Events</button>
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="create" onclick="app.navigate('create')">Create</button>
+        <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="friends" onclick="app.navigate('friends')">Friends</button>
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="insights" onclick="app.navigate('insights')">Insights</button>
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="profile" onclick="app.navigate('profile')">Profile</button>
         <button class="nav-box px-6 py-2 rounded-lg font-medium text-sm transition-all" data-tab="team" onclick="app.navigate('team')">Team</button>
