@@ -1556,8 +1556,10 @@ class MacroManage {
         console.log('Sending notifications for event:', event.title);
         console.log('Friends to notify:', friendsToNotify.map(f => f.contact));
         
-        // Try to send emails via backend API
         const results = [];
+        let apiWorked = false;
+        
+        // Try backend API first
         for (const friend of friendsToNotify || []) {
             if (friend.type === 'email') {
                 try {
@@ -1577,24 +1579,47 @@ class MacroManage {
                         })
                     });
                     
-                    if (emailRes.ok) {
-                        console.log('Email sent to:', friend.contact);
+                    const result = await emailRes.json();
+                    
+                    if (emailRes.ok && result.success) {
+                        console.log('Email sent successfully to:', friend.contact);
                         results.push({ success: true, email: friend.contact });
+                        apiWorked = true;
                     } else {
-                        console.warn('Email API returned error for:', friend.contact);
-                        results.push({ success: false, email: friend.contact });
+                        console.warn('Email API error for:', friend.contact, result.error);
+                        results.push({ success: false, email: friend.contact, error: result.error });
                     }
                 } catch (e) {
-                    console.warn('Email send failed for:', friend.contact, e.message);
-                    results.push({ success: false, email: friend.contact });
+                    console.error('Email send failed for:', friend.contact, e.message);
+                    results.push({ success: false, email: friend.contact, error: e.message });
                 }
             }
         }
         
-        // Always show success message - emails are queued
-        const total = friendsToNotify.length;
-        if (total > 0) {
-            this.showToast(`Invitations sent to ${total} friend${total > 1 ? 's' : ''}!`, 'success');
+        // If API didn't work, offer mailto fallback
+        if (!apiWorked && friendsToNotify.length > 0) {
+            const emails = friendsToNotify.map(f => f.contact).join(',');
+            const subject = encodeURIComponent(`You're invited: ${event.title}`);
+            const body = encodeURIComponent(`Hi!\n\nYou've been invited to: ${event.title}\n\nLocation: ${event.location || 'TBD'}\nDates: ${(event.dates || []).join(', ')}\n\nPlease let me know if you can make it!\n\nBest,\n${this.user.name || 'Your friend'}`);
+            
+            const useMailto = confirm(`Email API not configured. Would you like to send invitations via your email client instead?\n\n${friendsToNotify.length} friend(s) will be added to the email.`);
+            
+            if (useMailto) {
+                window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`;
+                this.showToast('Opening email client...', 'info');
+            } else {
+                this.showToast('Email not sent. Configure RESEND_API_KEY in Vercel to enable automatic emails.', 'warning');
+            }
+        } else if (apiWorked) {
+            const successCount = results.filter(r => r.success).length;
+            const total = friendsToNotify.length;
+            if (successCount === total) {
+                this.showToast(`All ${total} invitation${total > 1 ? 's' : ''} sent successfully!`, 'success');
+            } else if (successCount > 0) {
+                this.showToast(`${successCount}/${total} invitations sent`, 'warning');
+            } else {
+                this.showToast('Failed to send invitations', 'error');
+            }
         }
         
         return results;
@@ -1997,20 +2022,17 @@ class MacroManage {
             const lat = 37.7749;
             const lon = -122.4194;
             
-            // Open-Meteo only provides forecasts up to 16 days ahead
             const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const maxForecastDate = new Date(today);
             maxForecastDate.setDate(today.getDate() + 16);
             
-            // Get first day of requested month
             const monthStart = new Date(year, month, 1);
             const monthEnd = new Date(year, month + 1, 0);
             
-            // Limit to available forecast range
             const startDate = monthStart < today ? today : monthStart;
             const endDate = monthEnd > maxForecastDate ? maxForecastDate : monthEnd;
             
-            // If entire month is beyond forecast range, show default icons
             if (startDate > maxForecastDate) {
                 console.log('Month is beyond 16-day forecast range, using default icons');
                 this.setDefaultWeatherIcons(year, month);
@@ -2022,7 +2044,8 @@ class MacroManage {
             
             console.log('Loading weather for:', startDateStr, 'to', endDateStr);
             
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDateStr}&end_date=${endDateStr}&timezone=America/Los_Angeles`;
+            // Use forecast endpoint with current weather and daily forecast
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&start_date=${startDateStr}&end_date=${endDateStr}&timezone=America/Los_Angeles`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -2033,9 +2056,10 @@ class MacroManage {
             
             const data = await response.json();
             console.log('Weather data received:', data);
+            console.log('Current weather code:', data.current?.weathercode);
             
             if (data.daily && data.daily.weathercode && data.daily.time) {
-                console.log('Weather codes:', data.daily.weathercode);
+                console.log('Daily weather codes:', data.daily.weathercode);
                 data.daily.time.forEach((dateStr, index) => {
                     const code = data.daily.weathercode[index];
                     const weatherIcon = this.getWeatherEmoji(code);
