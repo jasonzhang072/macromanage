@@ -2092,17 +2092,25 @@ class MacroManage {
     }
     
     getWeatherEmoji(weatherCode) {
-        // WMO Weather interpretation codes
-        // 0: Clear sky, 1-3: Mainly clear/partly cloudy, 45-48: Fog
-        // 51-67: Rain, 71-77: Snow, 80-99: Rain showers/thunderstorm
-        if (weatherCode === 0) return '☀️';
-        if (weatherCode <= 3) return '⛅';
-        if (weatherCode <= 48) return '🌫️';
-        if (weatherCode <= 67) return '🌧️';
-        if (weatherCode <= 77) return '❄️';
-        if (weatherCode <= 82) return '🌦️';
-        if (weatherCode <= 99) return '⛈️';
-        return '🌤️';
+        // WMO Weather interpretation codes - ACCURATE mapping
+        // Reference: https://open-meteo.com/en/docs
+        console.log('Getting emoji for weather code:', weatherCode);
+        
+        if (weatherCode === 0) return '☀️'; // Clear sky
+        if (weatherCode === 1) return '🌤️'; // Mainly clear
+        if (weatherCode === 2) return '⛅'; // Partly cloudy
+        if (weatherCode === 3) return '☁️'; // Overcast
+        if (weatherCode === 45 || weatherCode === 48) return '🌫️'; // Fog
+        if (weatherCode >= 51 && weatherCode <= 55) return '🌦️'; // Drizzle
+        if (weatherCode >= 56 && weatherCode <= 57) return '🌧️'; // Freezing drizzle
+        if (weatherCode >= 61 && weatherCode <= 65) return '🌧️'; // Rain
+        if (weatherCode >= 66 && weatherCode <= 67) return '🌧️'; // Freezing rain
+        if (weatherCode >= 71 && weatherCode <= 77) return '❄️'; // Snow
+        if (weatherCode >= 80 && weatherCode <= 82) return '🌦️'; // Rain showers
+        if (weatherCode >= 85 && weatherCode <= 86) return '🌨️'; // Snow showers
+        if (weatherCode >= 95 && weatherCode <= 99) return '⛈️'; // Thunderstorm
+        
+        return '🌤️'; // Default
     }
     
     // Friends Management
