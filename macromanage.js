@@ -421,7 +421,7 @@ class MacroManage {
                             <p class="text-sm text-brown-500">Confirmed</p>
                         </div>
                         <div class="card p-6 text-center">
-                            <p class="text-4xl font-bold text-red-600 mb-2">${this.events.filter(e => e.status === 'pending').length}</p>
+                            <p class="text-4xl font-bold text-orange-600 mb-2">${this.events.filter(e => e.status === 'pending').length}</p>
                             <p class="text-sm text-brown-500">Pending</p>
                         </div>
                         <div class="card p-6 text-center bg-red-50">
@@ -454,7 +454,7 @@ class MacroManage {
                                         <p class="font-medium text-brown-700">${e.title}</p>
                                         <p class="text-xs text-brown-500">${(e.dates || [])[0] || 'No date'}</p>
                                     </div>
-                                    <span class="text-xs px-2 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.status}</span>
+                                    <span class="text-xs px-2 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">${e.status}</span>
                                 </div>
                             `).join('') : '<p class="text-brown-500 text-center py-8">No events yet</p>'}
                         </div>
@@ -511,7 +511,7 @@ class MacroManage {
                                 <div class="flex items-center gap-3">
                                     <button onclick="event.stopPropagation(); app.editEvent(${actualIdx})" class="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="Edit event">Edit</button>
                                     <button onclick="event.stopPropagation(); app.showAddFriendsModal(${actualIdx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
-                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.status || 'pending'}</span>
+                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">${e.status || 'pending'}</span>
                                     <button onclick="event.stopPropagation(); app.deleteEvent(${actualIdx})" class="text-red-500 hover:text-red-700 transition-colors px-3 py-1 text-xs" title="Delete event">Delete</button>
                                 </div>
                             </div>
@@ -1994,7 +1994,6 @@ class MacroManage {
     // Real Weather API Integration using Open-Meteo (free, no API key needed)
     async loadWeatherForMonth(year, month) {
         try {
-            // Default to San Francisco coordinates (can be made dynamic later)
             const lat = 37.7749;
             const lon = -122.4194;
             
@@ -2002,13 +2001,21 @@ class MacroManage {
             const endDate = new Date(year, month + 1, 0);
             const endDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
             
-            const response = await fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDateStr}&timezone=America/Los_Angeles`
-            );
+            console.log('Loading weather for:', startDate, 'to', endDateStr);
+            
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDateStr}&timezone=America/Los_Angeles`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                console.error('Weather API HTTP error:', response.status);
+                return;
+            }
             
             const data = await response.json();
+            console.log('Weather data received:', data);
             
             if (data.daily && data.daily.weathercode) {
+                console.log('Weather codes:', data.daily.weathercode);
                 data.daily.weathercode.forEach((code, index) => {
                     const day = index + 1;
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -2016,8 +2023,13 @@ class MacroManage {
                     const iconEl = document.getElementById(`weather-${dateStr}`);
                     if (iconEl) {
                         iconEl.textContent = weatherIcon;
+                        console.log(`Set weather for ${dateStr}: ${weatherIcon} (code: ${code})`);
+                    } else {
+                        console.warn(`Element not found: weather-${dateStr}`);
                     }
                 });
+            } else {
+                console.error('No weather data in response:', data);
             }
         } catch (e) {
             console.error('Weather API error:', e);

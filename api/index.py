@@ -2,15 +2,13 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 from urllib.parse import urlparse, parse_qs
-import requests
 import hashlib
 import time
+import urllib.request
 
 # Load environment variables
-MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '')
-MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET', '')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'jasonzhang072@gmail.com')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@macromanage.app')
 
 # Simple in-memory database (in production, use a real database)
 users_db = {}
