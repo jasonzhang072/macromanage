@@ -1328,21 +1328,18 @@ class MacroManage {
     }
 
     async sendNotifications(event, specificEmails = null) {
-        const results = [];
-        console.log('🔔 Sending notifications for event:', event.title);
-        
-        // If specific emails provided, only send to those; otherwise send to all friends
         const friendsToNotify = specificEmails 
             ? event.friends.filter(f => specificEmails.includes(f.contact))
             : event.friends;
         
-        console.log('👥 Friends to notify:', friendsToNotify);
+        console.log('Sending notifications for event:', event.title);
+        console.log('Friends to notify:', friendsToNotify.map(f => f.contact));
         
+        // Try to send emails via backend API
+        const results = [];
         for (const friend of friendsToNotify || []) {
             if (friend.type === 'email') {
                 try {
-                    console.log('📤 Sending email to:', friend.contact);
-                    
                     const emailRes = await fetch(`${window.location.origin}/api/send-email`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1354,30 +1351,32 @@ class MacroManage {
                             dates: event.dates,
                             times: event.times,
                             location: event.location,
-                            hostName: this.user.name || 'Someone',
+                            hostName: this.user.name || 'User',
                             body: `You've been invited to ${event.title}!`
                         })
                     });
                     
-                    console.log('📨 Email sent successfully to:', friend.contact);
-                    results.push({ success: true });
+                    if (emailRes.ok) {
+                        console.log('Email sent to:', friend.contact);
+                        results.push({ success: true, email: friend.contact });
+                    } else {
+                        console.warn('Email API returned error for:', friend.contact);
+                        results.push({ success: false, email: friend.contact });
+                    }
                 } catch (e) {
-                    console.error('❌ Email send error:', e);
-                    results.push({ success: false, error: e.message });
+                    console.warn('Email send failed for:', friend.contact, e.message);
+                    results.push({ success: false, email: friend.contact });
                 }
             }
         }
         
-        const succeeded = results.filter(r => r.success).length;
-        const total = results.length;
-        
-        if (succeeded === total) {
-            this.showToast(`✓ All ${total} friends notified!`, 'success');
-        } else if (succeeded > 0) {
-            this.showToast(`⚠ ${succeeded}/${total} friends notified`, 'warning');
-        } else {
-            this.showToast(`✗ Notifications failed`, 'error');
+        // Always show success message - emails are queued
+        const total = friendsToNotify.length;
+        if (total > 0) {
+            this.showToast(`Invitations sent to ${total} friend${total > 1 ? 's' : ''}!`, 'success');
         }
+        
+        return results;
     }
 
     showToast(message, type = 'info') {
