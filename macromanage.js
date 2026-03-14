@@ -51,6 +51,118 @@ class MacroManage {
         localStorage.setItem('friend_groups', JSON.stringify(this.friendGroups));
     }
     
+    loadNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    saveNotifications() {
+        localStorage.setItem('notifications', JSON.stringify(this.notifications));
+        this.updateNotificationBadge();
+    }
+    
+    addNotification(type, message, eventId = null) {
+        const notification = {
+            id: Date.now().toString(),
+            type,
+            message,
+            eventId,
+            timestamp: new Date().toISOString(),
+            read: false
+        };
+        this.notifications.unshift(notification);
+        this.saveNotifications();
+    }
+    
+    updateNotificationBadge() {
+        const badge = document.getElementById('notificationBadge');
+        if (!badge) return;
+        
+        const unreadCount = this.notifications.filter(n => !n.read).length;
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+    
+    toggleNotifications() {
+        const existing = document.getElementById('notificationPanel');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+        
+        const panel = document.createElement('div');
+        panel.id = 'notificationPanel';
+        panel.className = 'fixed top-20 right-6 w-96 max-h-[600px] bg-white rounded-2xl shadow-2xl z-50 overflow-hidden';
+        panel.innerHTML = `
+            <div class="bg-brown-500 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Notifications</h3>
+                <button onclick="app.clearAllNotifications()" class="text-sm underline">Clear All</button>
+            </div>
+            <div class="overflow-y-auto max-h-[500px]">
+                ${this.notifications.length > 0 ? this.notifications.map((n, idx) => `
+                    <div class="p-4 border-b border-beige-200 hover:bg-beige-50 cursor-pointer ${n.read ? 'opacity-60' : ''}" onclick="app.markNotificationRead(${idx})">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs font-semibold ${
+                                n.type === 'alert' ? 'text-red-600' : 
+                                n.type === 'response' ? 'text-green-600' : 
+                                'text-brown-600'
+                            }">${n.type.toUpperCase()}</span>
+                            <span class="text-xs text-brown-400">${this.formatTimestamp(n.timestamp)}</span>
+                        </div>
+                        <p class="text-sm text-brown-700">${n.message}</p>
+                        ${n.eventId ? `<button onclick="event.stopPropagation(); app.viewEvent('${n.eventId}'); app.toggleNotifications();" class="text-xs text-blue-600 mt-2">View Event</button>` : ''}
+                    </div>
+                `).join('') : '<p class="text-center text-brown-400 py-8">No notifications</p>'}
+            </div>
+        `;
+        
+        document.body.appendChild(panel);
+        
+        setTimeout(() => {
+            document.addEventListener('click', function closePanel(e) {
+                if (!panel.contains(e.target) && !e.target.closest('[onclick*="toggleNotifications"]')) {
+                    panel.remove();
+                    document.removeEventListener('click', closePanel);
+                }
+            });
+        }, 100);
+    }
+    
+    markNotificationRead(idx) {
+        this.notifications[idx].read = true;
+        this.saveNotifications();
+        this.toggleNotifications();
+        this.toggleNotifications();
+    }
+    
+    clearAllNotifications() {
+        this.notifications = [];
+        this.saveNotifications();
+        this.toggleNotifications();
+    }
+    
+    formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
+        return date.toLocaleDateString();
+    }
+    
     loadEvents() {
         try {
             const saved = localStorage.getItem('macromanage_events');
