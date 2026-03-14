@@ -2,8 +2,8 @@ class MacroManage {
     constructor() {
         console.log('🚀 MacroManage v2.0.0 - Feature Pack');
         this.currentTab = 'dashboard';
-        this.user = null;
-        this.events = [];
+        this.user = { name: 'User', email: 'user@macromanage.com' }; // Default user
+        this.events = this.loadEvents();
         this.currentEvent = {};
         this.currentStep = 1;
         this.selectedDates = [];
@@ -19,8 +19,11 @@ class MacroManage {
         // Load dark mode preference
         this.loadDarkMode();
         
-        // Check if user is logged in
-        this.checkAuth();
+        // Calculate insights
+        this.insights = this.calculateInsights();
+        
+        // Start app directly - no auth needed
+        this.navigate('dashboard');
     }
     
     loadDarkMode() {
@@ -50,176 +53,6 @@ class MacroManage {
     
     saveFriendGroups() {
         localStorage.setItem('friend_groups', JSON.stringify(this.friendGroups));
-    }
-    
-    checkAuth() {
-        // Check both localStorage (remember me) and sessionStorage
-        const session = localStorage.getItem('user_session') || sessionStorage.getItem('user_session');
-        if (session) {
-            try {
-                const userData = JSON.parse(session);
-                this.user = userData.user;
-                this.events = userData.events || [];
-                this.insights = this.calculateInsights();
-                this.navigate('dashboard');
-            } catch (e) {
-                console.error('Invalid session:', e);
-                this.showLoginScreen();
-            }
-        } else {
-            this.showLoginScreen();
-        }
-    }
-    
-    showLoginScreen() {
-        const app = document.getElementById('app');
-        app.innerHTML = `
-            <div class="min-h-screen flex items-center justify-center bg-beige-100 p-4">
-                <div class="card p-8 max-w-md w-full">
-                    <h1 class="text-3xl font-bold text-brown-700 mb-2 text-center">MacroManage</h1>
-                    <p class="text-brown-600 text-center mb-6">Plan events with friends</p>
-                    
-                    <div id="authForm">
-                        <div class="mb-4">
-                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Email</label>
-                            <input type="email" id="authEmail" placeholder="your@email.com" class="input-field" onkeypress="if(event.key==='Enter') document.getElementById('authPassword').focus()">
-                        </div>
-                        <div class="mb-4">
-                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Password</label>
-                            <input type="password" id="authPassword" placeholder="••••••••" class="input-field" onkeypress="if(event.key==='Enter') app.login()">
-                        </div>
-                        <div class="mb-4">
-                            <label class="text-sm font-semibold text-brown-700 mb-2 block">Name (for signup)</label>
-                            <input type="text" id="authName" placeholder="Your Name" class="input-field">
-                        </div>
-                        
-                        <div class="mb-6 flex items-center">
-                            <input type="checkbox" id="rememberMe" class="mr-2" checked>
-                            <label for="rememberMe" class="text-sm text-brown-700">Remember me</label>
-                        </div>
-                        
-                        <div id="authError" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm"></div>
-                        
-                        <div class="flex gap-2">
-                            <button onclick="app.login()" class="btn-primary flex-1">Login</button>
-                            <button onclick="app.signup()" class="btn-secondary flex-1">Sign Up</button>
-                        </div>
-                        
-                        <p class="text-xs text-brown-500 text-center mt-4">Note: This is a demo - data stored in memory only</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    async login() {
-        const email = document.getElementById('authEmail')?.value;
-        const password = document.getElementById('authPassword')?.value;
-        const rememberMe = document.getElementById('rememberMe')?.checked;
-        
-        if (!email || !password) {
-            this.showAuthError('Please enter email and password');
-            return;
-        }
-        
-        try {
-            console.log('Attempting login to:', `${this.API_URL}/api/login`);
-            const res = await fetch(`${this.API_URL}/api/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            
-            const data = await res.json();
-            console.log('Login response:', data);
-            
-            if (data.success) {
-                this.user = data.user;
-                this.events = data.events || [];
-                
-                const sessionData = { user: data.user, events: data.events, rememberMe };
-                if (rememberMe) {
-                    localStorage.setItem('user_session', JSON.stringify(sessionData));
-                } else {
-                    sessionStorage.setItem('user_session', JSON.stringify(sessionData));
-                }
-                
-                this.insights = this.calculateInsights();
-                this.navigate('dashboard');
-            } else {
-                this.showAuthError(data.message || 'Login failed');
-            }
-        } catch (e) {
-            console.error('Login error:', e);
-            this.showAuthError(`Connection error: ${e.message}. Check console for details.`);
-        }
-    }
-    
-    async signup() {
-        const email = document.getElementById('authEmail')?.value;
-        const password = document.getElementById('authPassword')?.value;
-        const name = document.getElementById('authName')?.value;
-        const rememberMe = document.getElementById('rememberMe')?.checked;
-        
-        if (!email || !password || !name) {
-            this.showAuthError('Please fill in all fields');
-            return;
-        }
-        
-        try {
-            console.log('Attempting signup to:', `${this.API_URL}/api/signup`);
-            const res = await fetch(`${this.API_URL}/api/signup`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name })
-            });
-            
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            
-            const data = await res.json();
-            console.log('Signup response:', data);
-            
-            if (data.success) {
-                this.user = data.user;
-                this.events = [];
-                
-                const sessionData = { user: data.user, events: [], rememberMe };
-                if (rememberMe) {
-                    localStorage.setItem('user_session', JSON.stringify(sessionData));
-                } else {
-                    sessionStorage.setItem('user_session', JSON.stringify(sessionData));
-                }
-                
-                this.insights = this.calculateInsights();
-                this.navigate('dashboard');
-            } else {
-                this.showAuthError(data.message || 'Signup failed');
-            }
-        } catch (e) {
-            console.error('Signup error:', e);
-            this.showAuthError(`Connection error: ${e.message}. Check console for details.`);
-        }
-    }
-    
-    showAuthError(message) {
-        const errorDiv = document.getElementById('authError');
-        if (errorDiv) {
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-    }
-    
-    logout() {
-        localStorage.removeItem('user_session');
-        this.user = null;
-        this.events = [];
-        this.showLoginScreen();
     }
     
     loadEvents() {
@@ -449,16 +282,6 @@ class MacroManage {
         }
         this.render();
         this.updateTab();
-        this.updateUserDisplay();
-    }
-    
-    updateUserDisplay() {
-        const userEmailEl = document.getElementById('userEmail');
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (this.user && userEmailEl && logoutBtn) {
-            userEmailEl.textContent = this.user.email;
-            logoutBtn.classList.remove('hidden');
-        }
     }
 
     updateTab() {
