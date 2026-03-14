@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('🚀 MacroManage v1.3.0 - Auth & Email History');
+        console.log('🚀 MacroManage v2.0.0 - Feature Pack');
         this.currentTab = 'dashboard';
         this.user = null;
         this.events = [];
@@ -12,10 +12,44 @@ class MacroManage {
         this.currentYear = new Date().getFullYear();
         this.calendarMonth = new Date();
         this.API_URL = window.location.origin || 'http://localhost:3000';
+        this.friendGroups = this.loadFriendGroups();
+        this.searchQuery = '';
         console.log('✅ API_URL initialized:', this.API_URL);
+        
+        // Load dark mode preference
+        this.loadDarkMode();
         
         // Check if user is logged in
         this.checkAuth();
+    }
+    
+    loadDarkMode() {
+        const darkMode = localStorage.getItem('dark_mode') === 'true';
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+            const toggle = document.getElementById('darkModeToggle');
+            if (toggle) toggle.textContent = '☀️';
+        }
+    }
+    
+    toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('dark_mode', isDark);
+        const toggle = document.getElementById('darkModeToggle');
+        if (toggle) toggle.textContent = isDark ? '☀️' : '🌙';
+    }
+    
+    loadFriendGroups() {
+        try {
+            return JSON.parse(localStorage.getItem('friend_groups') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    saveFriendGroups() {
+        localStorage.setItem('friend_groups', JSON.stringify(this.friendGroups));
     }
     
     checkAuth() {
@@ -480,10 +514,23 @@ class MacroManage {
             // Process responses from localStorage
             this.processEventResponses();
             
+            // Filter events based on search query
+            const filteredEvents = this.searchQuery 
+                ? this.events.filter(e => 
+                    e.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                    (e.location && e.location.toLowerCase().includes(this.searchQuery.toLowerCase())) ||
+                    (e.friends || []).some(f => f.contact.toLowerCase().includes(this.searchQuery.toLowerCase()))
+                  )
+                : this.events;
+            
             app.innerHTML = `
                 <div class="tab-content">
-                    <h2 class="text-2xl font-bold text-brown-700 mb-4">Your Events</h2>
-                    ${this.events.length > 0 ? this.events.map((e, idx) => {
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-brown-700">Your Events</h2>
+                        <input type="text" id="searchEvents" placeholder="🔍 Search events..." class="input-field w-64" value="${this.searchQuery}" oninput="app.searchEvents(this.value)">
+                    </div>
+                    ${filteredEvents.length > 0 ? filteredEvents.map((e, idx) => {
+                        const actualIdx = this.events.indexOf(e);
                         const responses = (e.responses || []).filter(r => r.response === 'accepted');
                         const declined = (e.responses || []).filter(r => r.response === 'declined');
                         const suggested = e.suggestedTimes || [];
@@ -498,9 +545,10 @@ class MacroManage {
                                     <p class="text-sm text-brown-500">${(e.dates || []).length} dates · ${(e.friends || []).length} invited</p>
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    <button onclick="event.stopPropagation(); app.showAddFriendsModal(${idx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
+                                    <button onclick="event.stopPropagation(); app.editEvent(${actualIdx})" class="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="Edit event">✏️ Edit</button>
+                                    <button onclick="event.stopPropagation(); app.showAddFriendsModal(${actualIdx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
                                     <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${e.status || 'pending'}</span>
-                                    <button onclick="event.stopPropagation(); app.deleteEvent(${idx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
+                                    <button onclick="event.stopPropagation(); app.deleteEvent(${actualIdx})" class="text-red-500 hover:text-red-700 transition-colors p-2" title="Delete event">🗑️</button>
                                 </div>
                             </div>
                             
@@ -1574,6 +1622,190 @@ class MacroManage {
         // Update modal
         this.closeAddFriendsModal();
         this.showAddFriendsModal(eventIdx);
+    }
+    
+    // Search Events
+    searchEvents(query) {
+        this.searchQuery = query;
+        this.render();
+    }
+    
+    // Edit Event
+    editEvent(idx) {
+        const event = this.events[idx];
+        this.currentEvent = { ...event, editMode: true, editIdx: idx };
+        this.currentTab = 'create';
+        this.currentEvent.step = 1;
+        this.render();
+    }
+    
+    // View Event Details (with Map, Expenses, Carpool)
+    viewEvent(eventId) {
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        const expenses = event.expenses || [];
+        const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+        const carpool = event.carpool || { drivers: [], riders: [] };
+        
+        const modalHtml = `
+            <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto" onclick="if(event.target.id==='eventModal') app.closeEventModal()">
+                <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 my-8" onclick="event.stopPropagation()">
+                    <h2 class="text-2xl font-bold text-brown-700 mb-4">${event.title}</h2>
+                    
+                    <!-- Map View -->
+                    ${event.location ? `
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold text-brown-700 mb-2">📍 Location</h3>
+                            <p class="text-sm text-brown-600 mb-2">${event.location}</p>
+                            <iframe width="100%" height="300" frameborder="0" style="border:0; border-radius:12px;" 
+                                src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(event.location)}" 
+                                allowfullscreen></iframe>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Expense Splitting -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-brown-700 mb-2">💰 Expense Splitting</h3>
+                        <div class="bg-beige-100 rounded-lg p-4 mb-3">
+                            <p class="text-sm font-semibold text-brown-700">Total: $${totalExpenses.toFixed(2)}</p>
+                            <p class="text-xs text-brown-600">Per person: $${((totalExpenses / (event.friends?.length || 1))).toFixed(2)}</p>
+                        </div>
+                        <div class="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                            ${expenses.map((exp, i) => `
+                                <div class="flex justify-between items-center bg-white rounded-lg p-2 text-sm">
+                                    <span class="text-brown-700">${exp.description}</span>
+                                    <span class="font-semibold text-brown-700">$${parseFloat(exp.amount).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="app.addExpense('${event.id}')" class="text-sm text-blue-600 hover:text-blue-700">+ Add Expense</button>
+                    </div>
+                    
+                    <!-- Carpool Coordination -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-brown-700 mb-2">🚗 Carpool</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-semibold text-brown-700 mb-2">Drivers (${carpool.drivers.length})</p>
+                                <div class="space-y-1">
+                                    ${carpool.drivers.map(d => `
+                                        <div class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-lg">${d.name} (${d.seats} seats)</div>
+                                    `).join('') || '<p class="text-xs text-brown-400">No drivers yet</p>'}
+                                </div>
+                                <button onclick="app.addDriver('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">+ I can drive</button>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-brown-700 mb-2">Need Rides (${carpool.riders.length})</p>
+                                <div class="space-y-1">
+                                    ${carpool.riders.map(r => `
+                                        <div class="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg">${r.name}</div>
+                                    `).join('') || '<p class="text-xs text-brown-400">Everyone has rides</p>'}
+                                </div>
+                                <button onclick="app.addRider('${event.id}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">+ I need a ride</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="app.closeEventModal()" class="w-full px-4 py-2 bg-brown-500 text-white rounded-lg hover:bg-brown-600 transition-colors">Close</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    closeEventModal() {
+        const modal = document.getElementById('eventModal');
+        if (modal) modal.remove();
+    }
+    
+    // Expense Management
+    addExpense(eventId) {
+        const description = prompt('Expense description:');
+        if (!description) return;
+        const amount = prompt('Amount ($):');
+        if (!amount || isNaN(amount)) return;
+        
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        if (!event.expenses) event.expenses = [];
+        event.expenses.push({ description, amount: parseFloat(amount), addedBy: this.user.email });
+        
+        this.saveEvents();
+        this.closeEventModal();
+        this.viewEvent(eventId);
+    }
+    
+    // Carpool Management
+    addDriver(eventId) {
+        const name = prompt('Your name:') || this.user.name;
+        const seats = prompt('Available seats:');
+        if (!seats || isNaN(seats)) return;
+        
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        if (!event.carpool) event.carpool = { drivers: [], riders: [] };
+        event.carpool.drivers.push({ name, seats: parseInt(seats), email: this.user.email });
+        
+        this.saveEvents();
+        this.closeEventModal();
+        this.viewEvent(eventId);
+    }
+    
+    addRider(eventId) {
+        const name = prompt('Your name:') || this.user.name;
+        
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        if (!event.carpool) event.carpool = { drivers: [], riders: [] };
+        event.carpool.riders.push({ name, email: this.user.email });
+        
+        this.saveEvents();
+        this.closeEventModal();
+        this.viewEvent(eventId);
+    }
+    
+    // Friend Groups
+    saveFriendGroup() {
+        if (!this.currentEvent.friends || this.currentEvent.friends.length === 0) {
+            alert('Add some friends first!');
+            return;
+        }
+        
+        const groupName = prompt('Name this friend group:');
+        if (!groupName) return;
+        
+        this.friendGroups.push({
+            name: groupName,
+            friends: [...this.currentEvent.friends]
+        });
+        
+        this.saveFriendGroups();
+        alert(`✅ Group "${groupName}" saved!`);
+    }
+    
+    loadFriendGroup(groupName) {
+        const group = this.friendGroups.find(g => g.name === groupName);
+        if (!group) return;
+        
+        this.currentEvent.friends = [...group.friends];
+        this.render();
+    }
+    
+    // Weather API Integration (using Open-Meteo free API)
+    async getWeatherForDate(date, location) {
+        try {
+            // Simple weather emoji based on date (mock for now - would need geocoding + weather API)
+            const dayOfWeek = new Date(date).getDay();
+            const weatherEmojis = ['☀️', '⛅', '☁️', '🌧️', '⛈️'];
+            return weatherEmojis[dayOfWeek % weatherEmojis.length];
+        } catch (e) {
+            return '🌤️';
+        }
     }
 }
 
