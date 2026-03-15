@@ -2043,8 +2043,13 @@ class MacroManage {
                 return;
             }
             
-            const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
-            const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+            // Use current year instead of the year parameter
+            const currentYear = new Date().getFullYear();
+            const actualStartDate = new Date(currentYear, startDate.getMonth(), startDate.getDate());
+            const actualEndDate = new Date(currentYear, endDate.getMonth(), endDate.getDate());
+            
+            const startDateStr = `${currentYear}-${String(actualStartDate.getMonth() + 1).padStart(2, '0')}-${String(actualStartDate.getDate()).padStart(2, '0')}`;
+            const endDateStr = `${currentYear}-${String(actualEndDate.getMonth() + 1).padStart(2, '0')}-${String(actualEndDate.getDate()).padStart(2, '0')}`;
             
             console.log('Loading weather for:', startDateStr, 'to', endDateStr);
             
