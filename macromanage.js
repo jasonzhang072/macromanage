@@ -1043,31 +1043,93 @@ class MacroManage {
         this.render();
     }
 
-    saveStep1() {
-        const title = document.getElementById('eventTitle');
-        const budget = document.getElementById('eventBudget');
-        const location = document.getElementById('eventLocation');
-        const eventType = document.getElementById('eventType');
-        const reminder1day = document.getElementById('reminder1day');
-        const reminder1hour = document.getElementById('reminder1hour');
-        const reminderSummary = document.getElementById('reminderSummary');
-        
-        if (!title || !title.value.trim()) { alert('Enter event title'); return; }
-        
-        this.currentEvent.title = title.value;
-        this.currentEvent.budget = budget ? budget.value : '';
-        this.currentEvent.location = location ? location.value : '';
-        this.currentEvent.eventType = eventType ? eventType.value : 'single';
-        this.currentEvent.reminders = {
-            oneDayBefore: reminder1day ? reminder1day.checked : true,
-            oneHourBefore: reminder1hour ? reminder1hour.checked : true,
-            pushSummary: reminderSummary ? reminderSummary.checked : true
+toggleDate(dateStr) {
+    const dateButton = event.target;
+    if (this.selectedDates.includes(dateStr)) {
+        this.selectedDates = this.selectedDates.filter(d => d !== dateStr);
+        delete this.dateTimeSlots[dateStr];
+        dateButton.classList.remove('bg-brown-500', 'text-white');
+        dateButton.classList.add('bg-beige-200', 'text-brown-600');
+    } else {
+        this.selectedDates.push(dateStr);
+        if (!this.dateTimeSlots[dateStr]) {
+            this.dateTimeSlots[dateStr] = { start: '', end: '' };
+        }
+        dateButton.classList.remove('bg-beige-200', 'text-brown-600');
+        dateButton.classList.add('bg-brown-500', 'text-white');
+    }
+    this.updateDateSlotsDisplay();
+}
+
+updateDateSlotsDisplay() {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const countText = document.querySelector('.text-sm.text-brown-400');
+    if (countText) countText.textContent = `${this.selectedDates.length} date(s) selected`;
+    
+    const slotsContainer = document.getElementById('timeSlotsContainer');
+    if (!slotsContainer) return;
+    
+    if (this.selectedDates.length > 0) {
+        slotsContainer.innerHTML = `
+            <div class="mt-4 border-t border-beige-200 pt-4">
+                <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
+                ${this.selectedDates.map(d => {
+                    const slot = this.dateTimeSlots[d] || {};
+                    const dateObj = new Date(d + 'T12:00:00');
+                    const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
+                    return `<div class="flex items-center gap-2 mb-3 bg-beige-100 rounded-xl p-3">
+                        <span class="text-sm font-semibold text-brown-700 w-24 shrink-0">${label}</span>
+                        <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}','start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                        <span class="text-brown-400 text-xs font-medium">to</span>
+                        <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}','end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                    </div>`;
+                }).join('')}
+            </div>
+        `;
+    } else {
+        slotsContainer.innerHTML = '<p class="text-sm text-brown-400 text-center mt-4">Select dates above to set time slots</p>';
+    }
+}
+
+async saveStep1() {
+    const title = document.getElementById('eventTitle');
+    const budget = document.getElementById('eventBudget');
+    const location = document.getElementById('eventLocation');
+    
+    if (!title.value.trim()) {
+        alert('Please enter an event title');
+        return;
+    }
+    
+    if (!location.value.trim()) {
+        alert('Please enter a location');
+        return;
+    }
+    
+    // Validate location can be geocoded
+    const coords = await this.geocodeAddress(location.value.trim());
+    if (!coords) {
+        alert('Location not found. Please enter a valid address (e.g., "4371 Mattos Dr, Fremont, CA").');
+        return;
+    }
+    
+    this.currentEvent = {
+            ...this.currentEvent,
+            title: title.value.trim(),
+            budget: budget.value.trim() || '0',
+            location: location.value.trim(),
+            locationCoords: coords,
+            reminders: {
+                oneDayBefore: reminder1day ? reminder1day.checked : true,
+                oneHourBefore: reminder1hour ? reminder1hour.checked : true,
+                pushSummary: reminderSummary ? reminderSummary.checked : true
+            }
         };
         this.goToStep(2);
     }
 
-    // Address suggestion feature removed - using simple text input instead
-    
     saveStep2() {
         const suggestionsDiv = document.getElementById('addressSuggestions');
         const locationInput = document.getElementById('eventLocation');
@@ -2023,8 +2085,24 @@ class MacroManage {
     // Real Weather API Integration using Open-Meteo (free, no API key needed)
     async loadWeatherForMonth(year, month) {
         try {
-            const lat = 37.7749;
-            const lon = -122.4194;
+            // Get coordinates from event location
+            let lat = 37.7749; // Default SF
+            let lon = -122.4194;
+            
+            if (this.currentEvent?.locationCoords) {
+                lat = this.currentEvent.locationCoords.lat;
+                lon = this.currentEvent.locationCoords.lon;
+                console.log(`Using stored coordinates for "${this.currentEvent.location}": ${lat}, ${lon}`);
+            } else if (this.currentEvent?.location && this.currentEvent.location.trim().length > 3) {
+                const coords = await this.geocodeAddress(this.currentEvent.location);
+                if (coords) {
+                    lat = coords.lat;
+                    lon = coords.lon;
+                    console.log(`Using geocoded coordinates for "${this.currentEvent.location}": ${lat}, ${lon}`);
+                } else {
+                    console.warn(`Could not geocode address: "${this.currentEvent.location}", using default SF coordinates`);
+                }
+            }
             
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -2085,6 +2163,36 @@ class MacroManage {
         } catch (e) {
             console.error('Weather API error:', e);
             this.setDefaultWeatherIcons(year, month);
+        }
+    }
+    
+    async geocodeAddress(address) {
+        try {
+            // Use Nominatim API (free, no API key needed)
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                console.error('Geocoding API error:', response.status);
+                return null;
+            }
+            
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const result = data[0];
+                return {
+                    lat: parseFloat(result.lat),
+                    lon: parseFloat(result.lon),
+                    displayName: result.display_name
+                };
+            } else {
+                console.warn('No results found for address:', address);
+                return null;
+            }
+        } catch (e) {
+            console.error('Geocoding error:', e);
+            return null;
         }
     }
     
