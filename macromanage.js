@@ -1108,27 +1108,33 @@ async saveStep1() {
         return;
     }
     
-    // Validate location can be geocoded
-    const coords = await this.geocodeAddress(location.value.trim());
-    if (!coords) {
-        alert('Location not found. Please enter a valid address (e.g., "4371 Mattos Dr, Fremont, CA").');
-        return;
+    // Try to geocode location but don't block if it fails
+    let coords = null;
+    try {
+        coords = await this.geocodeAddress(location.value.trim());
+        if (coords) {
+            console.log(`Location geocoded successfully: ${coords.lat}, ${coords.lon}`);
+        } else {
+            console.warn('Location geocoding failed, will use default coordinates');
+        }
+    } catch (e) {
+        console.error('Geocoding error:', e);
     }
     
     this.currentEvent = {
-            ...this.currentEvent,
-            title: title.value.trim(),
-            budget: budget.value.trim() || '0',
-            location: location.value.trim(),
-            locationCoords: coords,
-            reminders: {
-                oneDayBefore: reminder1day ? reminder1day.checked : true,
-                oneHourBefore: reminder1hour ? reminder1hour.checked : true,
-                pushSummary: reminderSummary ? reminderSummary.checked : true
-            }
-        };
-        this.goToStep(2);
-    }
+        ...this.currentEvent,
+        title: title.value.trim(),
+        budget: budget.value.trim() || '0',
+        location: location.value.trim(),
+        locationCoords: coords,
+        reminders: {
+            oneDayBefore: reminder1day ? reminder1day.checked : true,
+            oneHourBefore: reminder1hour ? reminder1hour.checked : true,
+            pushSummary: reminderSummary ? reminderSummary.checked : true
+        }
+    };
+    this.goToStep(2);
+}
 
     saveStep2() {
         const suggestionsDiv = document.getElementById('addressSuggestions');
