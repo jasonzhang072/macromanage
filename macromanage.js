@@ -1128,9 +1128,9 @@ async saveStep1() {
         location: location.value.trim(),
         locationCoords: coords,
         reminders: {
-            oneDayBefore: reminder1day ? reminder1day.checked : true,
-            oneHourBefore: reminder1hour ? reminder1hour.checked : true,
-            pushSummary: reminderSummary ? reminderSummary.checked : true
+            oneDayBefore: true,
+            oneHourBefore: true,
+            pushSummary: true
         }
     };
     this.goToStep(2);
