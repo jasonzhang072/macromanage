@@ -1043,8 +1043,14 @@ class MacroManage {
     }
 
     toggleDate(dateStr) {
-        const dateButton = event.target;
+        console.log('toggleDate called for:', dateStr);
+        console.log('Current dateTimeSlots:', JSON.stringify(this.dateTimeSlots));
+        
+        const dateButton = event.target.closest('button');
+        if (!dateButton) return;
+        
         const wasSelected = this.selectedDates.includes(dateStr);
+        console.log('Was selected:', wasSelected);
         
         if (wasSelected) {
             // Removing a date
@@ -1072,6 +1078,8 @@ class MacroManage {
         // Update count
         const countText = document.querySelector('.text-sm.text-brown-400');
         if (countText) countText.textContent = `${this.selectedDates.length} date(s) selected`;
+        
+        console.log('After toggle, dateTimeSlots:', JSON.stringify(this.dateTimeSlots));
     }
     
     addDateSlotToDOM(dateStr) {
