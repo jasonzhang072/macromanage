@@ -7,8 +7,9 @@ import time
 import urllib.request
 
 # Load environment variables
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '')
+MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET', '')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@macromanage.app')
 
 # Simple in-memory database (in production, use a real database)
 users_db = {}
@@ -18,31 +19,37 @@ def hash_password(password):
     """Simple password hashing"""
     return hashlib.sha256(password.encode()).hexdigest()
 
-def send_resend_email(to_email, subject, html_body):
-    """Send email via Resend API - simplified working version"""
-    debug_info = {
-        "exists": bool(RESEND_API_KEY),
-        "length": len(RESEND_API_KEY) if RESEND_API_KEY else 0,
-        "starts_with_re": RESEND_API_KEY.startswith('re_') if RESEND_API_KEY else False,
-        "first_10_chars": RESEND_API_KEY[:10] if RESEND_API_KEY else "NONE"
-    }
-    
-    if not RESEND_API_KEY:
-        return {"success": False, "error": "Email service not configured", "debug": debug_info}
+def send_mailjet_email(to_email, subject, html_body):
+    """Send email via Mailjet API"""
+    if not MAILJET_API_KEY or not MAILJET_API_SECRET:
+        return {"success": False, "error": "Mailjet not configured"}
     
     try:
+        import base64
+        
+        auth_string = f"{MAILJET_API_KEY}:{MAILJET_API_SECRET}"
+        auth_bytes = auth_string.encode('utf-8')
+        auth_b64 = base64.b64encode(auth_bytes).decode('utf-8')
+        
         data = json.dumps({
-            "from": SENDER_EMAIL,
-            "to": [to_email],
-            "subject": subject,
-            "html": html_body
+            "Messages": [{
+                "From": {
+                    "Email": SENDER_EMAIL,
+                    "Name": "MacroManage"
+                },
+                "To": [{
+                    "Email": to_email
+                }],
+                "Subject": subject,
+                "HTMLPart": html_body
+            }]
         }).encode('utf-8')
         
         req = urllib.request.Request(
-            "https://api.resend.com/emails",
+            "https://api.mailjet.com/v3.1/send",
             data=data,
             headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Authorization": f"Basic {auth_b64}",
                 "Content-Type": "application/json"
             },
             method="POST"
@@ -50,14 +57,10 @@ def send_resend_email(to_email, subject, html_body):
         
         with urllib.request.urlopen(req, timeout=10) as response:
             result = json.loads(response.read().decode())
-            print(f"Email sent successfully to {to_email}")
-            return {"success": True, "id": result.get("id")}
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode() if hasattr(e, 'read') else str(e)
-        print(f"Email send failed: HTTP {e.code} - {error_body}")
-        return {"success": False, "error": f"HTTP Error {e.code}: {error_body}"}
+            print(f"Mailjet email sent to {to_email}")
+            return {"success": True, "provider": "mailjet", "result": result}
     except Exception as e:
-        print(f"Email send failed: {str(e)}")
+        print(f"Mailjet error: {str(e)}")
         return {"success": False, "error": str(e)}
 
 def generate_email_template(event, response_url):
@@ -241,7 +244,7 @@ class handler(BaseHTTPRequestHandler):
             response_url = f"https://{host}/respond.html?event={data.get('eventId')}&email={data.get('to')}"
             html = generate_email_template(event, response_url)
             
-            result = send_resend_email(data.get('to'), f"You're invited: {event['title']}", html)
+            result = send_mailjet_email(data.get('to'), f"You're invited: {event['title']}", html)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -318,7 +321,7 @@ class handler(BaseHTTPRequestHandler):
 </table>
 </body></html>"""
             
-            result = send_resend_email(host_email, subject, html_body)
+            result = send_mailjet_email(host_email, subject, html_body)
             
             # Return response data so frontend can store it
             result['response_data'] = response_data
@@ -369,7 +372,7 @@ class handler(BaseHTTPRequestHandler):
 </table>
 </body></html>"""
             
-            result = send_resend_email(to_email, subject, html_body)
+            result = send_mailjet_email(to_email, subject, html_body)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
