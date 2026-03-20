@@ -511,29 +511,50 @@ class MacroManage {
                                 <div class="flex items-center gap-3">
                                     <button onclick="event.stopPropagation(); app.editEvent(${actualIdx})" class="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="Edit event">Edit</button>
                                     <button onclick="event.stopPropagation(); app.showAddFriendsModal(${actualIdx})" class="text-xs px-3 py-1 bg-brown-500 text-white rounded-full hover:bg-brown-600 transition-colors" title="Add more friends">+ Add Friends</button>
-                                    <span class="text-xs px-3 py-1 rounded-full ${e.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">${e.status || 'pending'}</span>
-                                    <button onclick="event.stopPropagation(); app.deleteEvent(${actualIdx})" class="text-red-500 hover:text-red-700 transition-colors px-3 py-1 text-xs" title="Delete event">Delete</button>
                                 </div>
                             </div>
                             
-                            ${responses.length > 0 ? `
+                            ${(responses.length > 0 || declined.length > 0) ? `
                                 <div class="border-t border-beige-200 pt-3 mt-3">
-                                    <p class="text-sm font-semibold text-brown-700 mb-2">Responses: ${responses.length} accepted, ${declined.length} declined</p>
+                                    <div class="flex gap-3 mb-3">
+                                        ${responses.length > 0 ? `
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-green-600 font-bold">✓</span>
+                                                <span class="text-sm font-semibold text-green-700">${responses.length} accepted</span>
+                                            </div>
+                                        ` : ''}
+                                        ${declined.length > 0 ? `
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-red-600 font-bold">✗</span>
+                                                <span class="text-sm font-semibold text-red-700">${declined.length} declined</span>
+                                            </div>
+                                        ` : ''}
+                                        ${(() => {
+                                            const respondedEmails = [...responses, ...declined].map(r => r.email);
+                                            const pending = (e.friends || []).filter(f => !respondedEmails.includes(f.contact));
+                                            return pending.length > 0 ? `
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-yellow-600 font-bold">⏳</span>
+                                                    <span class="text-sm font-semibold text-yellow-700">${pending.length} pending</span>
+                                                </div>
+                                            ` : '';
+                                        })()}
+                                    </div>
                                     ${suggested.length > 0 ? `
                                         <div class="bg-green-50 rounded-lg p-3 mb-3">
-                                            <p class="text-sm font-semibold text-green-700 mb-2">Suggested Times (${suggested[0].count}/${responses.length} available):</p>
+                                            <p class="text-sm font-semibold text-green-700 mb-2">Best Times (${suggested[0].count}/${responses.length} available):</p>
                                             ${suggested.slice(0, 3).map(s => `
                                                 <div class="flex justify-between items-center mb-1">
                                                     <span class="text-sm text-green-800">${s.date} · ${s.start} - ${s.end}</span>
-                                                    <button onclick="app.confirmEvent(${idx}, '${s.date}', '${s.start}', '${s.end}')" class="text-xs px-3 py-1 bg-green-600 text-white rounded-full hover:bg-green-700">Confirm</button>
+                                                    <button onclick="app.confirmEvent(${actualIdx}, '${s.date}', '${s.start}', '${s.end}')" class="text-xs px-2 py-1 bg-green-600 text-white rounded">Confirm</button>
                                                 </div>
                                             `).join('')}
                                         </div>
-                                    ` : '<p class="text-xs text-brown-400">Calculating overlapping availability...</p>'}
+                                    ` : ''}
                                 </div>
                             ` : ''}
                             
-                            ${e.eventType === 'poll' && totalVotes > 0 ? `
+                            ${totalVotes > 0 ? `
                                 <div class="border-t border-beige-200 pt-3 mt-3">
                                     <p class="text-sm font-semibold text-brown-700 mb-2">Poll Results (${totalVotes} votes):</p>
                                     ${Object.entries(pollResults).sort((a, b) => b[1] - a[1]).map(([option, count]) => `
@@ -1914,23 +1935,64 @@ async saveStep1() {
                                 </div>
                             ` : ''}
                             
-                            <!-- Availability & Responses -->
+                            <!-- RSVP Status -->
                             <div class="card p-4">
-                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Availability</h3>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-brown-600">Accepted</span>
-                                        <span class="font-semibold text-green-600">${responses.length}</span>
+                                <h3 class="text-lg font-semibold text-brown-700 mb-3">Who's Coming?</h3>
+                                
+                                <!-- Accepted List -->
+                                ${responses.length > 0 ? `
+                                    <div class="mb-4">
+                                        <p class="text-sm font-semibold text-green-700 mb-2">✓ Accepted (${responses.length})</p>
+                                        <div class="space-y-1">
+                                            ${responses.map(r => `
+                                                <div class="flex items-center gap-2 bg-green-50 rounded-lg p-2">
+                                                    <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">
+                                                        ${(r.email || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span class="text-sm text-green-800 font-medium">${r.email}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
                                     </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-brown-600">Declined</span>
-                                        <span class="font-semibold text-red-600">${declined.length}</span>
+                                ` : ''}
+                                
+                                <!-- Declined List -->
+                                ${declined.length > 0 ? `
+                                    <div class="mb-4">
+                                        <p class="text-sm font-semibold text-red-700 mb-2">✗ Declined (${declined.length})</p>
+                                        <div class="space-y-1">
+                                            ${declined.map(r => `
+                                                <div class="flex items-center gap-2 bg-red-50 rounded-lg p-2">
+                                                    <div class="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">
+                                                        ${(r.email || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span class="text-sm text-red-800 font-medium">${r.email}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
                                     </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-brown-600">Total Invited</span>
-                                        <span class="font-semibold text-brown-700">${(event.friends || []).length}</span>
-                                    </div>
-                                </div>
+                                ` : ''}
+                                
+                                <!-- Pending List -->
+                                ${(() => {
+                                    const respondedEmails = [...responses, ...declined].map(r => r.email);
+                                    const pending = (event.friends || []).filter(f => !respondedEmails.includes(f.contact));
+                                    return pending.length > 0 ? `
+                                        <div class="mb-4">
+                                            <p class="text-sm font-semibold text-yellow-700 mb-2">⏳ Pending (${pending.length})</p>
+                                            <div class="space-y-1">
+                                                ${pending.map(f => `
+                                                    <div class="flex items-center gap-2 bg-yellow-50 rounded-lg p-2">
+                                                        <div class="w-8 h-8 rounded-full bg-yellow-500 text-white flex items-center justify-center text-xs font-bold">
+                                                            ${(f.contact || '?').charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <span class="text-sm text-yellow-800 font-medium">${f.contact}</span>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : '';
+                                })()}
                                 
                                 ${suggested.length > 0 ? `
                                     <div class="mt-4 pt-4 border-t border-beige-200">
