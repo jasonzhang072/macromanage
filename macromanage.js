@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('MacroManage v3.0.0 - Enhanced');
+        console.log('MacroManage v3.1.0 - Mailto Email System');
         this.currentTab = 'dashboard';
         this.user = { name: 'User', email: 'user@macromanage.com' };
         this.events = this.loadEvents();
