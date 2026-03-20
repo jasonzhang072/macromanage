@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('MacroManage v3.7.0 - Time Slots Fixed + Smooth UI');
+        console.log('MacroManage v3.7.1 - Dark Mode Enhanced');
         this.currentTab = 'dashboard';
         this.user = null;
         this.events = [];
