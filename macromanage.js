@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('MacroManage v3.4.0 - Multiple Time Slots & Event Sharing');
+        console.log('MacroManage v3.5.0 - RSVP Tracking & Attendee List');
         this.currentTab = 'dashboard';
         this.user = { name: 'User', email: 'user@macromanage.com' };
         this.events = this.loadEvents();
