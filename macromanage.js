@@ -1248,57 +1248,6 @@ class MacroManage {
         this.currentEvent.step = step;
         this.render();
     }
-
-toggleDate(dateStr) {
-    const dateButton = event.target;
-    if (this.selectedDates.includes(dateStr)) {
-        this.selectedDates = this.selectedDates.filter(d => d !== dateStr);
-        delete this.dateTimeSlots[dateStr];
-        dateButton.classList.remove('bg-brown-500', 'text-white');
-        dateButton.classList.add('bg-beige-200', 'text-brown-600');
-    } else {
-        this.selectedDates.push(dateStr);
-        if (!this.dateTimeSlots[dateStr]) {
-            this.dateTimeSlots[dateStr] = { start: '', end: '' };
-        }
-        dateButton.classList.remove('bg-beige-200', 'text-brown-600');
-        dateButton.classList.add('bg-brown-500', 'text-white');
-    }
-    this.updateDateSlotsDisplay();
-}
-
-updateDateSlotsDisplay() {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    
-    const countText = document.querySelector('.text-sm.text-brown-400');
-    if (countText) countText.textContent = `${this.selectedDates.length} date(s) selected`;
-    
-    const slotsContainer = document.getElementById('timeSlotsContainer');
-    if (!slotsContainer) return;
-    
-    if (this.selectedDates.length > 0) {
-        slotsContainer.innerHTML = `
-            <div class="mt-4 border-t border-beige-200 pt-4">
-                <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
-                ${this.selectedDates.map(d => {
-                    const slot = this.dateTimeSlots[d] || {};
-                    const dateObj = new Date(d + 'T12:00:00');
-                    const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                    return `<div class="flex items-center gap-2 mb-3 bg-beige-100 rounded-xl p-3">
-                        <span class="text-sm font-semibold text-brown-700 w-24 shrink-0">${label}</span>
-                        <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}','start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
-                        <span class="text-brown-400 text-xs font-medium">to</span>
-                        <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}','end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
-                    </div>`;
-                }).join('')}
-            </div>
-        `;
-    } else {
-        slotsContainer.innerHTML = '<p class="text-sm text-brown-400 text-center mt-4">Select dates above to set time slots</p>';
-    }
-}
-
 async saveStep1() {
     const title = document.getElementById('eventTitle');
     const budget = document.getElementById('eventBudget');
