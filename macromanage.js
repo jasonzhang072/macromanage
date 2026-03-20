@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('MacroManage v3.1.0 - Mailto Email System');
+        console.log('MacroManage v3.2.0 - API Email Restored');
         this.currentTab = 'dashboard';
         this.user = { name: 'User', email: 'user@macromanage.com' };
         this.events = this.loadEvents();
@@ -1628,16 +1628,56 @@ async saveStep1() {
             return [];
         }
         
-        // Use mailto for email invitations
-        const emails = friendsToNotify.map(f => f.contact).join(',');
-        const subject = encodeURIComponent(`You're invited: ${event.title}`);
-        const body = encodeURIComponent(`Hi!\n\nYou've been invited to: ${event.title}\n\nLocation: ${event.location || 'TBD'}\nDates: ${(event.dates || []).join(', ')}\n\nPlease let me know if you can make it!\n\nBest,\n${this.user.name || 'Your friend'}`);
+        const results = [];
+        let apiWorked = false;
         
-        // Open email client with pre-filled invitation
-        window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`;
-        this.showToast(`Opening email client to send ${friendsToNotify.length} invitation${friendsToNotify.length > 1 ? 's' : ''}...`, 'success');
+        for (const friend of friendsToNotify) {
+            if (friend.type === 'email') {
+                try {
+                    const emailRes = await fetch(`${window.location.origin}/api/send-email`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: friend.contact,
+                            eventId: event.id,
+                            eventTitle: event.title,
+                            dates: event.dates,
+                            location: event.location,
+                            hostName: this.user.name || 'User',
+                            body: `You've been invited to ${event.title}!`
+                        })
+                    });
+                    
+                    const result = await emailRes.json();
+                    
+                    if (emailRes.ok && result.success) {
+                        console.log('Email sent successfully to:', friend.contact);
+                        results.push({ success: true, email: friend.contact });
+                        apiWorked = true;
+                    } else {
+                        console.warn('Email API error for:', friend.contact, result.error);
+                        results.push({ success: false, email: friend.contact, error: result.error });
+                    }
+                } catch (e) {
+                    console.error('Email send failed for:', friend.contact, e.message);
+                    results.push({ success: false, email: friend.contact, error: e.message });
+                }
+            }
+        }
         
-        return friendsToNotify.map(f => ({ success: true, email: f.contact }));
+        if (apiWorked) {
+            const successCount = results.filter(r => r.success).length;
+            this.showToast(`${successCount} invitation${successCount > 1 ? 's' : ''} sent successfully!`, 'success');
+        } else {
+            // Fallback to Gmail compose
+            const emails = friendsToNotify.map(f => f.contact).join(',');
+            const subject = encodeURIComponent(`You're invited: ${event.title}`);
+            const body = encodeURIComponent(`Hi!\n\nYou've been invited to: ${event.title}\n\nLocation: ${event.location || 'TBD'}\nDates: ${(event.dates || []).join(', ')}\n\nPlease let me know if you can make it!\n\nBest,\n${this.user.name || 'Your friend'}`);
+            window.open(`https://mail.google.com/mail/?view=cm&to=${emails}&su=${subject}&body=${body}`, '_blank');
+            this.showToast('Opening Gmail to send invitations...', 'info');
+        }
+        
+        return results;
     }
 
     showToast(message, type = 'info') {
