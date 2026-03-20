@@ -20,6 +20,10 @@ def hash_password(password):
 
 def send_resend_email(to_email, subject, html_body):
     """Send email via Resend API - simplified working version"""
+    print(f"[DEBUG] RESEND_API_KEY exists: {bool(RESEND_API_KEY)}")
+    print(f"[DEBUG] RESEND_API_KEY length: {len(RESEND_API_KEY) if RESEND_API_KEY else 0}")
+    print(f"[DEBUG] RESEND_API_KEY starts with re_: {RESEND_API_KEY.startswith('re_') if RESEND_API_KEY else False}")
+    
     if not RESEND_API_KEY:
         print("Email not sent: RESEND_API_KEY not configured")
         return {"success": False, "error": "Email service not configured"}
