@@ -2,8 +2,8 @@ class MacroManage {
     constructor() {
         console.log('MacroManage v3.5.0 - RSVP Tracking & Attendee List');
         this.currentTab = 'dashboard';
-        this.user = { name: 'User', email: 'user@macromanage.com' };
-        this.events = this.loadEvents();
+        this.user = null;
+        this.events = [];
         this.currentEvent = {};
         this.currentStep = 1;
         this.selectedDates = [];
@@ -12,14 +12,91 @@ class MacroManage {
         this.currentYear = new Date().getFullYear();
         this.calendarMonth = new Date();
         this.API_URL = window.location.origin || 'http://localhost:3000';
-        this.friendGroups = this.loadFriendGroups();
+        this.friendGroups = [];
         this.searchQuery = '';
-        this.notifications = this.loadNotifications();
+        this.notifications = [];
         
         this.loadDarkMode();
+        
+        // Check if user is logged in
+        const savedUser = localStorage.getItem('mm_user');
+        if (savedUser) {
+            const data = JSON.parse(savedUser);
+            this.user = data.user;
+            this.events = this.loadEvents();
+            this.friendGroups = this.loadFriendGroups();
+            this.notifications = this.loadNotifications();
+            this.insights = this.calculateInsights();
+            this.render();
+            this.processEventResponses();
+        } else {
+            this.showLoginModal();
+        }
+    }
+    
+    showLoginModal() {
+        const app = document.getElementById('app');
+        app.innerHTML = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+                    <h2 class="text-3xl font-bold text-brown-700 mb-2 text-center">Welcome to MacroManage</h2>
+                    <p class="text-brown-600 text-center mb-6">Preserve Human Connection</p>
+                    
+                    <div id="loginForm">
+                        <h3 class="text-xl font-semibold text-brown-700 mb-4">Sign In / Sign Up</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="loginName" placeholder="Your Name" class="input-field">
+                            <input type="email" id="loginEmail" placeholder="Email Address" class="input-field">
+                            <button onclick="app.handleLogin()" class="btn-primary w-full">Get Started</button>
+                        </div>
+                        <p class="text-xs text-brown-500 text-center mt-4">Your data is stored locally on your device</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    handleLogin() {
+        const name = document.getElementById('loginName').value.trim();
+        const email = document.getElementById('loginEmail').value.trim();
+        
+        if (!name || !email) {
+            alert('Please enter both name and email');
+            return;
+        }
+        
+        if (!email.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        
+        // Create user account
+        this.user = { name, email };
+        this.events = [];
+        this.friendGroups = [];
+        this.notifications = [];
+        
+        // Save to localStorage
+        localStorage.setItem('mm_user', JSON.stringify({
+            user: this.user,
+            events: this.events,
+            friends: []
+        }));
+        
+        this.showToast(`Welcome, ${name}! 🎉`, 'success');
         this.insights = this.calculateInsights();
-        this.updateNotificationBadge();
-        this.navigate('dashboard');
+        this.render();
+        this.processEventResponses();
+    }
+
+    logout() {
+        if (confirm('Are you sure you want to log out? Your data will remain saved locally.')) {
+            this.user = null;
+            this.events = [];
+            this.friendGroups = [];
+            this.notifications = [];
+            this.showLoginModal();
+        }
     }
     
     loadDarkMode() {
@@ -950,6 +1027,7 @@ class MacroManage {
                             <input type="text" id="profileName" value="${this.user.name}" class="input-field" placeholder="Name">
                             <input type="email" id="profileEmail" value="${this.user.email}" class="input-field" placeholder="Email">
                             <button onclick="app.saveProfile()" class="btn-primary w-full">Save</button>
+                            <button onclick="app.logout()" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Log Out</button>
                         </div>
                     </div>
                 </div>

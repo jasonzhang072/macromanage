@@ -123,6 +123,18 @@
                         })
                     });
                     
+                    // Create notification for host
+                    const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+                    notifications.push({
+                        id: Date.now().toString(),
+                        type: 'rsvp_declined',
+                        message: `${email} declined your invitation${eventData ? ` to ${eventData.title}` : ''}.`,
+                        eventId: eventId,
+                        timestamp: new Date().toISOString(),
+                        read: false
+                    });
+                    localStorage.setItem('notifications', JSON.stringify(notifications));
+                    
                     // Save declined event to invitee's events list
                     if (eventData) {
                         const events = JSON.parse(localStorage.getItem('macromanage_events') || '[]');
@@ -285,6 +297,18 @@
                     responses.push(result.response_data);
                     localStorage.setItem('event_responses', JSON.stringify(responses));
                 }
+                
+                // Create notification for host
+                const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+                notifications.push({
+                    id: Date.now().toString(),
+                    type: 'rsvp_accepted',
+                    message: `${email} accepted your invitation${eventData ? ` to ${eventData.title}` : ''}!`,
+                    eventId: eventId,
+                    timestamp: new Date().toISOString(),
+                    read: false
+                });
+                localStorage.setItem('notifications', JSON.stringify(notifications));
                 
                 // Save event to invitee's events list
                 if (eventData) {
