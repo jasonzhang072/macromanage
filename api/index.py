@@ -8,7 +8,7 @@ import urllib.request
 
 # Load environment variables
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@macromanage.app')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 
 # Simple in-memory database (in production, use a real database)
 users_db = {}
