@@ -1112,8 +1112,11 @@ class MacroManage {
     }
 
     addTimeSlot(date) {
+        console.log('Adding time slot for date:', date);
+        console.log('Current slots:', this.dateTimeSlots[date]);
         if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [];
         this.dateTimeSlots[date].push({ start: '', end: '' });
+        console.log('After adding:', this.dateTimeSlots[date]);
         this.updateDateSlotsDisplay();
     }
 
