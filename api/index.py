@@ -8,7 +8,7 @@ import urllib.request
 
 # Load environment variables
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@macromanage.app')
 
 # Simple in-memory database (in production, use a real database)
 users_db = {}
@@ -19,17 +19,10 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def send_resend_email(to_email, subject, html_body):
-    """Send email via Resend API"""
-    # Debug logging
-    api_key_status = "SET" if RESEND_API_KEY else "NOT SET"
-    api_key_preview = RESEND_API_KEY[:10] + "..." if RESEND_API_KEY and len(RESEND_API_KEY) > 10 else "NONE"
-    print(f"[EMAIL DEBUG] API Key Status: {api_key_status}, Preview: {api_key_preview}")
-    print(f"[EMAIL DEBUG] Sender: {SENDER_EMAIL}, Recipient: {to_email}")
-    
+    """Send email via Resend API - simplified working version"""
     if not RESEND_API_KEY:
-        error_msg = "RESEND_API_KEY environment variable not set in Vercel. Go to Vercel Dashboard → Settings → Environment Variables → Add RESEND_API_KEY"
-        print(f"[EMAIL ERROR] {error_msg}")
-        return {"success": False, "error": error_msg}
+        print("Email not sent: RESEND_API_KEY not configured")
+        return {"success": False, "error": "Email service not configured"}
     
     try:
         data = json.dumps({
@@ -38,8 +31,6 @@ def send_resend_email(to_email, subject, html_body):
             "subject": subject,
             "html": html_body
         }).encode('utf-8')
-        
-        print(f"[EMAIL DEBUG] Sending request to Resend API...")
         
         req = urllib.request.Request(
             "https://api.resend.com/emails",
@@ -53,15 +44,11 @@ def send_resend_email(to_email, subject, html_body):
         
         with urllib.request.urlopen(req, timeout=10) as response:
             result = json.loads(response.read().decode())
-            print(f"[EMAIL SUCCESS] Email sent to {to_email}, ID: {result.get('id')}")
-            return {"success": True, "provider": "resend", "id": result.get("id")}
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode() if hasattr(e, 'read') else str(e)
-        print(f"[EMAIL ERROR] HTTP {e.code}: {error_body}")
-        return {"success": False, "error": f"Resend API error {e.code}: {error_body}"}
+            print(f"Email sent successfully to {to_email}")
+            return {"success": True, "id": result.get("id")}
     except Exception as e:
-        print(f"[EMAIL ERROR] Exception: {str(e)}")
-        return {"success": False, "error": f"Email send failed: {str(e)}"}
+        print(f"Email send failed: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 def generate_email_template(event, response_url):
     """Generate email HTML"""

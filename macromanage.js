@@ -1649,10 +1649,6 @@ async saveStep1() {
                     
                     const result = await emailRes.json();
                     
-                    console.log(`[EMAIL API RESPONSE] Status: ${emailRes.status}, Success: ${result.success}`);
-                    console.log(`[EMAIL API RESPONSE] Full result:`, result);
-                    console.log(`[EMAIL API RESPONSE] Error: ${result.error || 'None'}`);
-                    
                     if (emailRes.ok && result.success) {
                         console.log('✅ Email sent successfully to:', friend.contact);
                         results.push({ success: true, email: friend.contact });
