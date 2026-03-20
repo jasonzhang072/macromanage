@@ -733,9 +733,9 @@ class MacroManage {
                                 </div>
                                 ${slots.map((slot, idx) => `
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                                        <input type="time" value="${slot.start || ''}" oninput="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
                                         <span class="text-brown-400 text-xs font-medium">to</span>
-                                        <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                                        <input type="time" value="${slot.end || ''}" oninput="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
                                         ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
                                     </div>
                                 `).join('')}
@@ -1055,6 +1055,12 @@ class MacroManage {
             dateButton.classList.remove('bg-beige-200', 'text-brown-600');
             dateButton.classList.add('bg-brown-500', 'text-white');
         }
+        
+        // Update count without re-rendering entire slots section
+        const countText = document.querySelector('.text-sm.text-brown-400');
+        if (countText) countText.textContent = `${this.selectedDates.length} date(s) selected`;
+        
+        // Only re-render if we need to add/remove a date's time slots
         this.updateDateSlotsDisplay();
     }
     
@@ -1083,9 +1089,9 @@ class MacroManage {
                             </div>
                             ${slots.map((slot, idx) => `
                                 <div class="flex items-center gap-2 mb-2">
-                                    <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                                    <input type="time" value="${slot.start || ''}" oninput="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
                                     <span class="text-brown-400 text-xs font-medium">to</span>
-                                    <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                                    <input type="time" value="${slot.end || ''}" oninput="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
                                     ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
                                 </div>
                             `).join('')}
@@ -1100,19 +1106,21 @@ class MacroManage {
 
     updateTimeSlot(date, slotIdx, type, value) {
         if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [{ start: '', end: '' }];
+        if (!this.dateTimeSlots[date][slotIdx]) this.dateTimeSlots[date][slotIdx] = { start: '', end: '' };
         this.dateTimeSlots[date][slotIdx][type] = value;
+        console.log('Time slot updated:', date, slotIdx, type, value);
     }
 
     addTimeSlot(date) {
         if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [];
         this.dateTimeSlots[date].push({ start: '', end: '' });
-        this.render();
+        this.updateDateSlotsDisplay();
     }
 
     removeTimeSlot(date, slotIdx) {
         if (this.dateTimeSlots[date] && this.dateTimeSlots[date].length > 1) {
             this.dateTimeSlots[date].splice(slotIdx, 1);
-            this.render();
+            this.updateDateSlotsDisplay();
         }
     }
 
