@@ -52,6 +52,10 @@ def send_resend_email(to_email, subject, html_body):
             result = json.loads(response.read().decode())
             print(f"Email sent successfully to {to_email}")
             return {"success": True, "id": result.get("id")}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode() if hasattr(e, 'read') else str(e)
+        print(f"Email send failed: HTTP {e.code} - {error_body}")
+        return {"success": False, "error": f"HTTP Error {e.code}: {error_body}"}
     except Exception as e:
         print(f"Email send failed: {str(e)}")
         return {"success": False, "error": str(e)}
