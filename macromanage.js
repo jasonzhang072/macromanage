@@ -1160,10 +1160,11 @@ class MacroManage {
     }
 
     updateTimeSlot(date, slotIdx, type, value) {
+        console.log('updateTimeSlot called with:', {date, slotIdx, type, value});
         if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [{ start: '', end: '' }];
         if (!this.dateTimeSlots[date][slotIdx]) this.dateTimeSlots[date][slotIdx] = { start: '', end: '' };
         this.dateTimeSlots[date][slotIdx][type] = value;
-        console.log('Time slot updated:', date, slotIdx, type, value);
+        console.log('After update, dateTimeSlots:', JSON.stringify(this.dateTimeSlots));
     }
 
     addTimeSlot(date) {
