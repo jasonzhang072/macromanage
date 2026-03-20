@@ -721,24 +721,26 @@ class MacroManage {
                 setTimeout(() => this.loadWeatherForMonth(year, month), 100);
                 const slotsHtml = this.selectedDates.length > 0 ? `
                     <div class="mt-4 border-t border-beige-200 pt-4">
-                        <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
+                        <p class="text-sm font-semibold text-brown-700 mb-3">Set your availability for each date:</p>
                         ${this.selectedDates.map(d => {
                             const slots = this.dateTimeSlots[d] || [{ start: '', end: '' }];
                             const dateObj = new Date(d + 'T12:00:00');
                             const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                            return `<div class="mb-4 bg-beige-50 rounded-xl p-3">
+                            return `<div class="mb-4 bg-beige-50 rounded-xl p-3 transition-all" data-date-slot="${d}">
                                 <div class="flex justify-between items-center mb-2">
                                     <span class="text-sm font-semibold text-brown-700">${label}</span>
-                                    <button onclick="app.addTimeSlot('${d}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600">+ Add Time</button>
+                                    <button onclick="app.addTimeSlot('${d}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600 transition-all">+ Add Time</button>
                                 </div>
-                                ${slots.map((slot, idx) => `
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <input type="time" value="${slot.start || ''}" oninput="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
-                                        <span class="text-brown-400 text-xs font-medium">to</span>
-                                        <input type="time" value="${slot.end || ''}" oninput="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
-                                        ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
-                                    </div>
-                                `).join('')}
+                                <div id="slots-${d}">
+                                    ${slots.map((slot, idx) => `
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <input type="time" value="${slot.start || ''}" oninput="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1 transition-all">
+                                            <span class="text-brown-400 text-xs font-medium">to</span>
+                                            <input type="time" value="${slot.end || ''}" oninput="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1 transition-all">
+                                            ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-all">×</button>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>`;
                         }).join('')}
                     </div>
@@ -1042,26 +1044,71 @@ class MacroManage {
 
     toggleDate(dateStr) {
         const dateButton = event.target;
-        if (this.selectedDates.includes(dateStr)) {
+        const wasSelected = this.selectedDates.includes(dateStr);
+        
+        if (wasSelected) {
+            // Removing a date
             this.selectedDates = this.selectedDates.filter(d => d !== dateStr);
             delete this.dateTimeSlots[dateStr];
             dateButton.classList.remove('bg-brown-500', 'text-white');
             dateButton.classList.add('bg-beige-200', 'text-brown-600');
+            
+            // Remove the time slot section for this date
+            const slotSection = document.querySelector(`[data-date-slot="${dateStr}"]`);
+            if (slotSection) slotSection.remove();
         } else {
+            // Adding a date
             this.selectedDates.push(dateStr);
             if (!this.dateTimeSlots[dateStr]) {
                 this.dateTimeSlots[dateStr] = [{ start: '', end: '' }];
             }
             dateButton.classList.remove('bg-beige-200', 'text-brown-600');
             dateButton.classList.add('bg-brown-500', 'text-white');
+            
+            // Add the time slot section for this date
+            this.addDateSlotToDOM(dateStr);
         }
         
-        // Update count without re-rendering entire slots section
+        // Update count
         const countText = document.querySelector('.text-sm.text-brown-400');
         if (countText) countText.textContent = `${this.selectedDates.length} date(s) selected`;
+    }
+    
+    addDateSlotToDOM(dateStr) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const slots = this.dateTimeSlots[dateStr] || [{ start: '', end: '' }];
+        const dateObj = new Date(dateStr + 'T12:00:00');
+        const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
         
-        // Only re-render if we need to add/remove a date's time slots
-        this.updateDateSlotsDisplay();
+        const container = document.getElementById('timeSlotsContainer');
+        if (!container) return;
+        
+        // Remove "no dates selected" message if present
+        const noDateMsg = container.querySelector('.text-brown-400.text-center');
+        if (noDateMsg) noDateMsg.remove();
+        
+        // Create the date slot HTML
+        const slotHtml = `
+            <div class="mb-4 bg-beige-50 rounded-xl p-3 transition-all" data-date-slot="${dateStr}">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-brown-700">${label}</span>
+                    <button onclick="app.addTimeSlot('${dateStr}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600 transition-all">+ Add Time</button>
+                </div>
+                <div id="slots-${dateStr}">
+                    ${slots.map((slot, idx) => `
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="time" value="${slot.start || ''}" oninput="app.updateTimeSlot('${dateStr}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                            <span class="text-brown-400 text-xs font-medium">to</span>
+                            <input type="time" value="${slot.end || ''}" oninput="app.updateTimeSlot('${dateStr}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                            ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${dateStr}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-all">×</button>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', slotHtml);
     }
     
     updateDateSlotsDisplay() {
@@ -1112,12 +1159,23 @@ class MacroManage {
     }
 
     addTimeSlot(date) {
-        console.log('Adding time slot for date:', date);
-        console.log('Current slots:', this.dateTimeSlots[date]);
         if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [];
+        const newIdx = this.dateTimeSlots[date].length;
         this.dateTimeSlots[date].push({ start: '', end: '' });
-        console.log('After adding:', this.dateTimeSlots[date]);
-        this.updateDateSlotsDisplay();
+        
+        // Add the new slot to the DOM without re-rendering everything
+        const slotsContainer = document.getElementById(`slots-${date}`);
+        if (slotsContainer) {
+            const newSlotHtml = `
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="time" value="" oninput="app.updateTimeSlot('${date}',${newIdx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                    <span class="text-brown-400 text-xs font-medium">to</span>
+                    <input type="time" value="" oninput="app.updateTimeSlot('${date}',${newIdx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
+                    <button onclick="app.removeTimeSlot('${date}',${newIdx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-all">×</button>
+                </div>
+            `;
+            slotsContainer.insertAdjacentHTML('beforeend', newSlotHtml);
+        }
     }
 
     removeTimeSlot(date, slotIdx) {
