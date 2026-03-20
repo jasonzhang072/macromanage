@@ -7,7 +7,7 @@ class MacroManage {
         this.currentEvent = {};
         this.currentStep = 1;
         this.selectedDates = [];
-        this.dateTimeSlots = {};
+        this.dateTimeSlots = {}; // { 'date': [{start: '', end: ''}, ...] }
         this.currentMonth = new Date().getMonth();
         this.currentYear = new Date().getFullYear();
         this.calendarMonth = new Date();
@@ -625,14 +625,22 @@ class MacroManage {
                     <div class="mt-4 border-t border-beige-200 pt-4">
                         <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
                         ${this.selectedDates.map(d => {
-                            const slot = this.dateTimeSlots[d] || {};
+                            const slots = this.dateTimeSlots[d] || [{ start: '', end: '' }];
                             const dateObj = new Date(d + 'T12:00:00');
                             const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                            return `<div class="flex items-center gap-2 mb-3 bg-beige-100 rounded-xl p-3">
-                                <span class="text-sm font-semibold text-brown-700 w-24 shrink-0">${label}</span>
-                                <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}','start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
-                                <span class="text-brown-400 text-xs font-medium">to</span>
-                                <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}','end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                            return `<div class="mb-4 bg-beige-50 rounded-xl p-3">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-semibold text-brown-700">${label}</span>
+                                    <button onclick="app.addTimeSlot('${d}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600">+ Add Time</button>
+                                </div>
+                                ${slots.map((slot, idx) => `
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                                        <span class="text-brown-400 text-xs font-medium">to</span>
+                                        <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                                        ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
+                                    </div>
+                                `).join('')}
                             </div>`;
                         }).join('')}
                     </div>
@@ -943,7 +951,7 @@ class MacroManage {
         } else {
             this.selectedDates.push(dateStr);
             if (!this.dateTimeSlots[dateStr]) {
-                this.dateTimeSlots[dateStr] = { start: '', end: '' };
+                this.dateTimeSlots[dateStr] = [{ start: '', end: '' }];
             }
             dateButton.classList.remove('bg-beige-200', 'text-brown-600');
             dateButton.classList.add('bg-brown-500', 'text-white');
@@ -966,14 +974,22 @@ class MacroManage {
                 <div class="mt-4 border-t border-beige-200 pt-4">
                     <p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>
                     ${this.selectedDates.map(d => {
-                        const slot = this.dateTimeSlots[d] || {};
+                        const slots = this.dateTimeSlots[d] || [{ start: '', end: '' }];
                         const dateObj = new Date(d + 'T12:00:00');
                         const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                        return `<div class="flex items-center gap-2 mb-3 bg-beige-100 rounded-xl p-3">
-                            <span class="text-sm font-semibold text-brown-700 w-24 shrink-0">${label}</span>
-                            <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}','start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
-                            <span class="text-brown-400 text-xs font-medium">to</span>
-                            <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}','end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                        return `<div class="mb-4 bg-beige-50 rounded-xl p-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-semibold text-brown-700">${label}</span>
+                                <button onclick="app.addTimeSlot('${d}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600">+ Add Time</button>
+                            </div>
+                            ${slots.map((slot, idx) => `
+                                <div class="flex items-center gap-2 mb-2">
+                                    <input type="time" value="${slot.start || ''}" onchange="app.updateTimeSlot('${d}',${idx},'start',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="Start">
+                                    <span class="text-brown-400 text-xs font-medium">to</span>
+                                    <input type="time" value="${slot.end || ''}" onchange="app.updateTimeSlot('${d}',${idx},'end',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1" placeholder="End">
+                                    ${slots.length > 1 ? `<button onclick="app.removeTimeSlot('${d}',${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
+                                </div>
+                            `).join('')}
                         </div>`;
                     }).join('')}
                 </div>
@@ -983,9 +999,22 @@ class MacroManage {
         }
     }
 
-    updateTimeSlot(date, type, value) {
-        if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = {};
-        this.dateTimeSlots[date][type] = value;
+    updateTimeSlot(date, slotIdx, type, value) {
+        if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [{ start: '', end: '' }];
+        this.dateTimeSlots[date][slotIdx][type] = value;
+    }
+
+    addTimeSlot(date) {
+        if (!this.dateTimeSlots[date]) this.dateTimeSlots[date] = [];
+        this.dateTimeSlots[date].push({ start: '', end: '' });
+        this.render();
+    }
+
+    removeTimeSlot(date, slotIdx) {
+        if (this.dateTimeSlots[date] && this.dateTimeSlots[date].length > 1) {
+            this.dateTimeSlots[date].splice(slotIdx, 1);
+            this.render();
+        }
     }
 
     togglePollMode(value) {
@@ -1475,19 +1504,36 @@ async saveStep1() {
 
     saveStep2() {
         if (this.selectedDates.length === 0) { alert('Select at least one date'); return; }
+        
+        // Validate all time slots are filled
         for (const d of this.selectedDates) {
-            const slot = this.dateTimeSlots[d];
-            if (!slot || !slot.start || !slot.end) {
+            const slots = this.dateTimeSlots[d];
+            if (!slots || slots.length === 0) {
                 const dateObj = new Date(d + 'T12:00:00');
-                alert(`Please set a start and end time for ${dateObj.toDateString()}`);
+                alert(`Please add at least one time slot for ${dateObj.toDateString()}`);
                 return;
             }
+            for (let i = 0; i < slots.length; i++) {
+                if (!slots[i].start || !slots[i].end) {
+                    const dateObj = new Date(d + 'T12:00:00');
+                    alert(`Please fill in all time slots for ${dateObj.toDateString()}`);
+                    return;
+                }
+            }
         }
-        this.currentEvent.dateSlots = this.selectedDates.map(d => ({
-            date: d, start: this.dateTimeSlots[d].start, end: this.dateTimeSlots[d].end
-        }));
+        
+        // Save with multiple time slots per date
+        this.currentEvent.dateSlots = this.selectedDates.flatMap(d => 
+            this.dateTimeSlots[d].map(slot => ({
+                date: d, 
+                start: slot.start, 
+                end: slot.end
+            }))
+        );
         this.currentEvent.dates = [...this.selectedDates];
-        this.currentEvent.times = this.selectedDates.map(d => `${this.dateTimeSlots[d].start} - ${this.dateTimeSlots[d].end}`);
+        this.currentEvent.times = this.selectedDates.flatMap(d => 
+            this.dateTimeSlots[d].map(slot => `${slot.start} - ${slot.end}`)
+        );
         this.goToStep(3);
     }
 
