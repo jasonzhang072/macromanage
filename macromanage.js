@@ -1,6 +1,6 @@
 class MacroManage {
     constructor() {
-        console.log('MacroManage v3.6.0 - Notifications & Authentication');
+        console.log('MacroManage v3.6.1 - Time Slot Fix');
         this.currentTab = 'dashboard';
         this.user = null;
         this.events = [];
