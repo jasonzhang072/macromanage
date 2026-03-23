@@ -88,16 +88,16 @@
             return `macromanage://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(name)}`;
         }
 
-        // On mobile, try to open the app via deep link after a brief pause
-        // If the app opens, the browser tab stays in background
-        // If it doesn't open, the user stays on this web page as fallback
-        if (isMobile() && eventId && response) {
-            const action = response === 'accept' ? 'accept' : 'decline';
+        function tryOpenApp(action) {
             const deepLink = buildDeepLink(action);
-            // Small delay so the page renders first, then try the deep link
-            setTimeout(() => {
-                window.location.href = deepLink;
-            }, 100);
+            // Try custom scheme
+            window.location.href = deepLink;
+            // If Android, also try intent as fallback
+            if (/Android/i.test(navigator.userAgent)) {
+                setTimeout(() => {
+                    window.location.href = `intent://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(email ? email.split('@')[0] : '')}#Intent;scheme=macromanage;package=com.macromanage.app;end`;
+                }, 500);
+            }
         }
 
         async function processResponse() {
@@ -106,22 +106,15 @@
                 return;
             }
 
-            // Try to fetch event details from the API (optional - works if backend is available)
-            try {
-                const eventRes = await fetch(`${window.location.origin}/api/get-event?id=${eventId}`);
-                if (eventRes.ok) {
-                    const data = await eventRes.json();
-                    if (data && data.title) eventData = data;
-                }
-            } catch (e) {
-                console.log('Event fetch skipped (using URL params):', e.message);
-            }
-
             const isAccept = response === 'accept';
+            const action = isAccept ? 'accept' : 'decline';
 
             // Set deep link button for manual tap
             const btn = document.getElementById('deepLinkBtn');
-            if (btn) btn.href = buildDeepLink(isAccept ? 'accept' : 'decline');
+            if (btn) {
+                btn.href = '#';
+                btn.onclick = function(e) { e.preventDefault(); tryOpenApp(action); };
+            }
 
             document.getElementById('statusIcon').textContent = isAccept ? '✓' : '✕';
             document.getElementById('statusIcon').style.background = isAccept
@@ -130,9 +123,15 @@
             document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
             
             if (isAccept) {
-                document.getElementById('statusMessage').textContent = `Great! You accepted "${eventTitle}". Now let the host know when you're available.`;
+                // Show the "Open in App" button immediately on mobile
+                if (isMobile()) {
+                    document.getElementById('statusMessage').innerHTML = `You accepted "<strong>${eventTitle}</strong>"! Open the app to let the host know when you're free.`;
+                    document.getElementById('finalMessage').classList.remove('hidden');
+                } else {
+                    document.getElementById('statusMessage').textContent = `Great! You accepted "${eventTitle}". Set your availability below.`;
+                }
 
-                // Notify host of acceptance via API (best-effort)
+                // Notify host via API (best-effort)
                 try {
                     await fetch(`${window.location.origin}/api/notify-host`, {
                         method: 'POST',
@@ -141,31 +140,11 @@
                     });
                 } catch (e) {}
 
-                // Store acceptance in localStorage
-                try {
-                    const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
-                    notifications.push({
-                        id: Date.now().toString(),
-                        type: 'rsvp_accepted',
-                        message: `${email} accepted your invitation to "${eventTitle}"!`,
-                        eventId: eventId,
-                        timestamp: new Date().toISOString(),
-                        read: false
-                    });
-                    localStorage.setItem('notifications', JSON.stringify(notifications));
-                } catch (e) {}
-
-                // On mobile the app should already be opening via deep link above.
-                // Show the availability form as fallback (desktop, or app not installed).
+                // Show the availability form (desktop immediately, mobile after delay as fallback)
                 setTimeout(() => {
                     document.getElementById('availabilityForm').classList.remove('hidden');
                     renderCalendar();
-                }, 800);
-
-                // Show a mobile hint if app didn't open
-                if (isMobile()) {
-                    document.getElementById('statusMessage').textContent = `Opening MacroManage app... If it didn't open, set your availability below.`;
-                }
+                }, isMobile() ? 1500 : 400);
             } else {
                 document.getElementById('statusMessage').textContent = `You declined "${eventTitle}". The host has been notified.`;
                 setTimeout(() => {
