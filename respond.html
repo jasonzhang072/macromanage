@@ -54,9 +54,13 @@
                 Submit Availability
             </button>
         </div>
-        <div id="finalMessage" class="hidden text-center">
+        <div id="finalMessage" class="hidden text-center space-y-3">
             <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-                Open MacroManage
+                Open MacroManage Website
+            </a>
+            <p class="text-sm text-brown-400 mt-2">Or open the MacroManage app if you have it installed:</p>
+            <a id="deepLinkBtn" href="#" class="inline-block px-6 py-3 rounded-full font-semibold transition-all hover:opacity-90 border-2" style="color: #7D6245; border-color: #B8956E;">
+                Open in App
             </a>
         </div>
     </div>
@@ -66,30 +70,59 @@
         const eventId = urlParams.get('event');
         const email = urlParams.get('email');
         const response = urlParams.get('response');
+        const eventTitle = urlParams.get('title') || 'Event';
 
-        let eventData = null;
+        let eventData = { id: eventId, title: eventTitle };
         let selectedDates = [];
         let dateTimeSlots = {}; // { 'date': [{start: '', end: ''}, ...] }
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
 
+        // Detect mobile device
+        function isMobile() {
+            return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        }
+
+        function buildDeepLink(action) {
+            const name = email ? email.split('@')[0] : '';
+            return `macromanage://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(name)}`;
+        }
+
+        // On mobile, immediately try to open the app via deep link
+        // The web page stays loaded as a fallback if the app isn't installed
+        if (isMobile() && eventId && response) {
+            const deepLink = buildDeepLink(response === 'accept' ? 'accept' : 'decline');
+            // Use a hidden iframe first (avoids "can't open" error on iOS)
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = deepLink;
+            document.body.appendChild(iframe);
+            // Also try direct navigation after a short delay as backup
+            setTimeout(() => { window.location.href = deepLink; }, 300);
+        }
+
         async function processResponse() {
             if (!eventId || !email || !response) {
-                showError('Missing required parameters');
+                showError('Missing required parameters. Please use the link from your invitation email.');
                 return;
+            }
+
+            // Try to fetch event details from the API (optional - works if backend is available)
+            try {
+                const eventRes = await fetch(`${window.location.origin}/api/get-event?id=${eventId}`);
+                if (eventRes.ok) {
+                    const data = await eventRes.json();
+                    if (data && data.title) eventData = data;
+                }
+            } catch (e) {
+                console.log('Event fetch skipped (using URL params):', e.message);
             }
 
             const isAccept = response === 'accept';
 
-            try {
-                // Get event details
-                const eventRes = await fetch(`${window.location.origin}/api/get-event?id=${eventId}`);
-                if (eventRes.ok) {
-                    eventData = await eventRes.json();
-                }
-            } catch (e) {
-                console.error('Error fetching event:', e);
-            }
+            // Set deep link button for manual tap
+            const btn = document.getElementById('deepLinkBtn');
+            if (btn) btn.href = buildDeepLink(isAccept ? 'accept' : 'decline');
 
             document.getElementById('statusIcon').textContent = isAccept ? '✓' : '✕';
             document.getElementById('statusIcon').style.background = isAccept
@@ -98,59 +131,70 @@
             document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
             
             if (isAccept) {
-                // Show availability form for accepted invitations
-                document.getElementById('statusMessage').textContent = 'Great! Now let the host know when you\'re available.';
-                setTimeout(() => {
-                    document.getElementById('availabilityForm').classList.remove('hidden');
-                    renderCalendar();
-                }, 1000);
-            } else {
-                // For declined invitations, just show final message
-                document.getElementById('statusMessage').textContent = 'You declined the invitation. The host has been notified.';
-                setTimeout(() => {
-                    document.getElementById('finalMessage').classList.remove('hidden');
-                }, 1500);
-                
-                // Notify host of decline
+                document.getElementById('statusMessage').textContent = `Great! You accepted "${eventTitle}". Now let the host know when you're available.`;
+
+                // Notify host of acceptance via API (best-effort)
                 try {
                     await fetch(`${window.location.origin}/api/notify-host`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            event_id: eventId, 
-                            email: email, 
-                            response: 'declined'
-                        })
+                        body: JSON.stringify({ event_id: eventId, email: email, response: 'accepted' })
                     });
-                    
-                    // Create notification for host
+                } catch (e) {}
+
+                // Store acceptance in localStorage
+                try {
                     const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
                     notifications.push({
                         id: Date.now().toString(),
-                        type: 'rsvp_declined',
-                        message: `${email} declined your invitation${eventData ? ` to ${eventData.title}` : ''}.`,
+                        type: 'rsvp_accepted',
+                        message: `${email} accepted your invitation to "${eventTitle}"!`,
                         eventId: eventId,
                         timestamp: new Date().toISOString(),
                         read: false
                     });
                     localStorage.setItem('notifications', JSON.stringify(notifications));
-                    
-                    // Save declined event to invitee's events list
-                    if (eventData) {
-                        const events = JSON.parse(localStorage.getItem('macromanage_events') || '[]');
-                        const inviteeEvent = {
-                            ...eventData,
-                            id: eventId,
-                            status: 'declined',
-                            role: 'invitee',
-                            respondedAt: new Date().toISOString()
-                        };
-                        events.push(inviteeEvent);
-                        localStorage.setItem('macromanage_events', JSON.stringify(events));
-                    }
-                } catch (e) {
-                    console.error('Error notifying host:', e);
+                } catch (e) {}
+
+                // On mobile the app should already be opening via deep link above.
+                // Show the availability form as fallback (desktop, or app not installed).
+                setTimeout(() => {
+                    document.getElementById('availabilityForm').classList.remove('hidden');
+                    renderCalendar();
+                }, 800);
+
+                // Show a mobile hint if app didn't open
+                if (isMobile()) {
+                    document.getElementById('statusMessage').textContent = `Opening MacroManage app... If it didn't open, set your availability below.`;
                 }
+            } else {
+                document.getElementById('statusMessage').textContent = `You declined "${eventTitle}". The host has been notified.`;
+                setTimeout(() => {
+                    document.getElementById('finalMessage').classList.remove('hidden');
+                }, 1200);
+                
+                // Notify host of decline via API
+                try {
+                    await fetch(`${window.location.origin}/api/notify-host`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ event_id: eventId, email: email, response: 'declined' })
+                    });
+                } catch (e) {}
+                    
+                // Store in localStorage
+                try {
+                    const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+                    notifications.push({
+                        id: Date.now().toString(),
+                        type: 'rsvp_declined',
+                        message: `${email} declined your invitation to "${eventTitle}".`,
+                        eventId: eventId,
+                        timestamp: new Date().toISOString(),
+                        read: false
+                    });
+                    localStorage.setItem('notifications', JSON.stringify(notifications));
+                } catch (e) {}
             }
         }
 
@@ -276,9 +320,9 @@
                 return;
             }
             
+            // Notify host via API (best-effort)
             try {
-                // Send availability and notify host
-                const res = await fetch(`${window.location.origin}/api/notify-host`, {
+                await fetch(`${window.location.origin}/api/notify-host`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -288,51 +332,43 @@
                         availability: dateTimeSlots
                     })
                 });
-                
-                const result = await res.json();
-                
-                // Store response locally for host to access
-                if (result.response_data) {
-                    const responses = JSON.parse(localStorage.getItem('event_responses') || '[]');
-                    responses.push(result.response_data);
-                    localStorage.setItem('event_responses', JSON.stringify(responses));
-                }
-                
-                // Create notification for host
+            } catch (e) {
+                console.log('API notify skipped:', e.message);
+            }
+            
+            // Store in localStorage (for same-device / website testing)
+            try {
                 const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
                 notifications.push({
                     id: Date.now().toString(),
                     type: 'rsvp_accepted',
-                    message: `${email} accepted your invitation${eventData ? ` to ${eventData.title}` : ''}!`,
+                    message: `${email} accepted your invitation to "${eventTitle}"!`,
                     eventId: eventId,
                     timestamp: new Date().toISOString(),
                     read: false
                 });
                 localStorage.setItem('notifications', JSON.stringify(notifications));
-                
-                // Save event to invitee's events list
-                if (eventData) {
-                    const events = JSON.parse(localStorage.getItem('macromanage_events') || '[]');
-                    const inviteeEvent = {
-                        ...eventData,
-                        id: eventId,
-                        status: 'confirmed',
-                        role: 'invitee',
-                        myAvailability: dateTimeSlots,
-                        respondedAt: new Date().toISOString()
-                    };
-                    events.push(inviteeEvent);
-                    localStorage.setItem('macromanage_events', JSON.stringify(events));
-                }
-                
-                // Show success
-                document.getElementById('availabilityForm').classList.add('hidden');
-                document.getElementById('statusTitle').textContent = '✅ All Set!';
-                document.getElementById('statusMessage').textContent = 'Your availability has been sent to the host! Event added to your dashboard.';
-                document.getElementById('finalMessage').classList.remove('hidden');
-            } catch (e) {
-                console.error('Error submitting availability:', e);
-                alert('Error submitting availability. Please try again.');
+
+                const responses = JSON.parse(localStorage.getItem('event_responses') || '[]');
+                responses.push({
+                    event_id: eventId,
+                    email: email,
+                    response: 'accepted',
+                    availability: dateTimeSlots
+                });
+                localStorage.setItem('event_responses', JSON.stringify(responses));
+            } catch (e) {}
+            
+            // Show success
+            document.getElementById('availabilityForm').classList.add('hidden');
+            document.getElementById('statusTitle').textContent = '✅ All Set!';
+            document.getElementById('statusMessage').textContent = 'Your availability has been sent to the host!';
+            document.getElementById('finalMessage').classList.remove('hidden');
+
+            // On mobile, redirect to the app
+            if (isMobile()) {
+                document.getElementById('statusMessage').textContent = 'Opening MacroManage app...';
+                setTimeout(() => { window.location.href = buildDeepLink('accept'); }, 600);
             }
         }
 
