@@ -90,14 +90,13 @@
 
         function tryOpenApp(action) {
             const deepLink = buildDeepLink(action);
-            // Try custom scheme
             window.location.href = deepLink;
-            // If Android, also try intent as fallback
-            if (/Android/i.test(navigator.userAgent)) {
-                setTimeout(() => {
-                    window.location.href = `intent://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(email ? email.split('@')[0] : '')}#Intent;scheme=macromanage;package=com.macromanage.app;end`;
-                }, 500);
-            }
+        }
+
+        // Auto-redirect to app on page load
+        if (eventId && response) {
+            const action = response === 'accept' ? 'accept' : 'decline';
+            setTimeout(() => { tryOpenApp(action); }, 300);
         }
 
         async function processResponse() {
