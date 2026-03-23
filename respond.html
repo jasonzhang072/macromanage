@@ -55,12 +55,12 @@
             </button>
         </div>
         <div id="finalMessage" class="hidden text-center space-y-3">
-            <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-                Open MacroManage Website
-            </a>
-            <p class="text-sm text-brown-400 mt-2">Or open the MacroManage app if you have it installed:</p>
-            <a id="deepLinkBtn" href="#" class="inline-block px-6 py-3 rounded-full font-semibold transition-all hover:opacity-90 border-2" style="color: #7D6245; border-color: #B8956E;">
+            <a id="deepLinkBtn" href="#" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
                 Open in App
+            </a>
+            <p class="text-sm text-brown-400 mt-2">Don't have the app?</p>
+            <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold transition-all hover:opacity-90 border-2" style="color: #7D6245; border-color: #B8956E;">
+                Open MacroManage Website
             </a>
         </div>
     </div>
@@ -88,17 +88,16 @@
             return `macromanage://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(name)}`;
         }
 
-        // On mobile, immediately try to open the app via deep link
-        // The web page stays loaded as a fallback if the app isn't installed
+        // On mobile, try to open the app via deep link after a brief pause
+        // If the app opens, the browser tab stays in background
+        // If it doesn't open, the user stays on this web page as fallback
         if (isMobile() && eventId && response) {
-            const deepLink = buildDeepLink(response === 'accept' ? 'accept' : 'decline');
-            // Use a hidden iframe first (avoids "can't open" error on iOS)
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = deepLink;
-            document.body.appendChild(iframe);
-            // Also try direct navigation after a short delay as backup
-            setTimeout(() => { window.location.href = deepLink; }, 300);
+            const action = response === 'accept' ? 'accept' : 'decline';
+            const deepLink = buildDeepLink(action);
+            // Small delay so the page renders first, then try the deep link
+            setTimeout(() => {
+                window.location.href = deepLink;
+            }, 100);
         }
 
         async function processResponse() {
