@@ -8,355 +8,391 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        beige: { 50: '#FFFBF5', 100: '#FDF6E9', 200: '#F5EBD8', 300: '#EDE0C8', 400: '#E5D5B8' },
-                        brown: { 400: '#C4A882', 500: '#B8956E', 600: '#9A7B5A', 700: '#7D6245', 800: '#604A32' }
-                    }
-                }
-            }
+            theme: { extend: { colors: {
+                beige: { 50: '#FFF8F0', 100: '#FAF3E6', 200: '#EDE0CE', 300: '#E8DBC4', 400: '#D4C4A8' },
+                brown: { 400: '#C09B74', 500: '#B08D6B', 600: '#9A8568', 700: '#6B5744', 800: '#4A3728' }
+            }}}
         }
     </script>
     <style>
         * { -webkit-font-smoothing: antialiased; }
-        body { background: #FDF6E9; font-family: 'DM Sans', sans-serif; }
+        body { background: #EDE0CE; font-family: 'DM Sans', sans-serif; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .grad-header { background: linear-gradient(135deg, #C09B74, #7D5A3C); }
+        .grad-btn { background: linear-gradient(135deg, #B08D6B, #8A6E4E); }
+        .grad-green { background: linear-gradient(135deg, #4CAF7D, #3D9E6E); }
+        .grad-red { background: linear-gradient(135deg, #E57373, #D32F2F); }
+        .infield { border:1.5px solid #E8DBC4; background:#FFF8F0; color:#4A3728; }
+        .infield:focus { border-color:#B08D6B; outline:none; box-shadow:0 0 0 3px rgba(176,141,107,0.15); }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full" id="responseContainer">
-        <div class="text-center">
-            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold" id="statusIcon" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-                ✓
-            </div>
-            <h1 class="text-2xl font-bold text-brown-700 mb-2" id="statusTitle">Processing...</h1>
-            <p class="text-brown-600 mb-6" id="statusMessage">Please wait while we record your response.</p>
+<div class="bg-white rounded-2xl shadow-lg max-w-md w-full overflow-hidden" id="mainCard">
+
+    <!-- Loading -->
+    <div id="step-loading" class="step active p-8 text-center">
+        <div class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse grad-btn">
+            <span class="text-white text-xl">...</span>
         </div>
-        <div id="availabilityForm" class="hidden">
-            <h2 class="text-xl font-bold text-brown-700 mb-4">When are you available?</h2>
-            <p class="text-sm text-brown-600 mb-4">Select any dates and times you're available. The host will find overlapping times.</p>
-            
-            <!-- Calendar -->
-            <div class="mb-4">
-                <div class="flex justify-between items-center mb-3">
-                    <button onclick="changeMonth(-1)" class="text-brown-600 hover:text-brown-800 font-bold text-xl px-3 py-1">‹</button>
-                    <span class="font-semibold text-brown-700" id="calendarMonth"></span>
-                    <button onclick="changeMonth(1)" class="text-brown-600 hover:text-brown-800 font-bold text-xl px-3 py-1">›</button>
-                </div>
-                <div class="grid grid-cols-7 gap-1" id="calendar"></div>
-                <p class="text-xs text-brown-400 mt-2" id="selectedCount">0 date(s) selected</p>
-            </div>
-            
-            <!-- Time Slots -->
-            <div id="timeSlots" class="mb-4"></div>
-            
-            <button onclick="submitAvailability()" class="w-full px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-                Submit Availability
-            </button>
+        <h1 class="text-xl font-bold text-brown-700">Loading...</h1>
+    </div>
+
+    <!-- Auth: sign up or login -->
+    <div id="step-auth" class="step">
+        <div class="p-6 text-center grad-header">
+            <h1 class="text-2xl font-bold text-white">Welcome to MacroManage</h1>
+            <p class="text-white/80 text-sm mt-1">Create an account to respond</p>
         </div>
-        <div id="finalMessage" class="hidden text-center space-y-3">
-            <a id="deepLinkBtn" href="#" class="inline-block px-6 py-3 rounded-full font-semibold text-white transition-all hover:opacity-90" style="background: linear-gradient(135deg, #B8956E 0%, #9A7B5A 100%);">
-                Open in App
-            </a>
-            <p class="text-sm text-brown-400 mt-2">Don't have the app?</p>
-            <a href="/" class="inline-block px-6 py-3 rounded-full font-semibold transition-all hover:opacity-90 border-2" style="color: #7D6245; border-color: #B8956E;">
-                Open MacroManage Website
-            </a>
+        <div class="p-6 fade-in">
+            <div id="auth-signup" class="space-y-3">
+                <div><label class="text-xs font-semibold text-brown-600 uppercase">Your Name</label>
+                <input id="signup-name" type="text" class="infield w-full rounded-xl px-4 py-3 mt-1 text-sm" placeholder="Enter your name"></div>
+                <div><label class="text-xs font-semibold text-brown-600 uppercase">Email</label>
+                <input id="signup-email" type="email" class="infield w-full rounded-xl px-4 py-3 mt-1 text-sm" readonly></div>
+                <div><label class="text-xs font-semibold text-brown-600 uppercase">Password</label>
+                <input id="signup-password" type="password" class="infield w-full rounded-xl px-4 py-3 mt-1 text-sm" placeholder="Create a password"></div>
+                <button onclick="doSignup()" class="grad-btn w-full py-3 rounded-full text-white font-semibold text-sm mt-2">Create Account</button>
+                <p class="text-center text-xs text-brown-400 mt-2">Already have an account? <a href="javascript:void(0)" onclick="showLogin()" class="text-brown-600 font-semibold underline">Log in</a></p>
+            </div>
+            <div id="auth-login" class="space-y-3 hidden">
+                <div><label class="text-xs font-semibold text-brown-600 uppercase">Email</label>
+                <input id="login-email" type="email" class="infield w-full rounded-xl px-4 py-3 mt-1 text-sm" readonly></div>
+                <div><label class="text-xs font-semibold text-brown-600 uppercase">Password</label>
+                <input id="login-password" type="password" class="infield w-full rounded-xl px-4 py-3 mt-1 text-sm" placeholder="Your password"></div>
+                <button onclick="doLogin()" class="grad-btn w-full py-3 rounded-full text-white font-semibold text-sm mt-2">Log In</button>
+                <p class="text-center text-xs text-brown-400 mt-2">Need an account? <a href="javascript:void(0)" onclick="showSignup()" class="text-brown-600 font-semibold underline">Sign up</a></p>
+            </div>
+            <p id="auth-error" class="text-red-500 text-xs text-center mt-2 hidden"></p>
         </div>
     </div>
 
+    <!-- Accept or Decline -->
+    <div id="step-respond" class="step">
+        <div class="p-6 text-center grad-header">
+            <h1 class="text-2xl font-bold text-white">You're Invited!</h1>
+            <p class="text-white/80 text-sm mt-1" id="host-label">Someone wants to hang out</p>
+        </div>
+        <div class="p-6 fade-in">
+            <div class="bg-beige-50 rounded-xl p-4 text-center mb-4">
+                <div class="text-xl font-bold text-brown-800" id="event-title-display"></div>
+            </div>
+            <div id="event-loc-block" class="bg-beige-50 rounded-xl p-3 text-center mb-3 hidden">
+                <div class="text-xs font-bold text-brown-400 uppercase mb-1">Location</div>
+                <div class="text-sm font-semibold text-brown-700" id="event-loc-val"></div>
+            </div>
+            <div id="event-budget-block" class="bg-beige-50 rounded-xl p-3 text-center mb-4 hidden">
+                <div class="text-xs font-bold text-brown-400 uppercase mb-1">Budget</div>
+                <div class="text-sm font-semibold text-brown-700" id="event-budget-val"></div>
+            </div>
+            <p class="text-center text-brown-600 text-sm mb-5">Will you be joining?</p>
+            <div class="flex gap-3">
+                <button onclick="respondAccept()" class="grad-green flex-1 py-3 rounded-full text-white font-semibold text-sm">Accept</button>
+                <button onclick="respondDecline()" class="flex-1 py-3 rounded-full font-semibold text-sm border border-beige-300" style="background:#E8DBC4;color:#6B5744">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Friend Request -->
+    <div id="step-friend" class="step">
+        <div class="p-6 fade-in text-center">
+            <div class="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-xl font-bold grad-btn" id="host-avatar">?</div>
+            <h2 class="text-lg font-bold text-brown-700 mb-1">Add <span id="host-name-span">the host</span> as a friend?</h2>
+            <p class="text-sm text-brown-400 mb-5">This is your first time connecting</p>
+            <div class="flex gap-3">
+                <button onclick="acceptFriend()" class="grad-green flex-1 py-3 rounded-full text-white font-semibold text-sm">Add Friend</button>
+                <button onclick="skipFriend()" class="flex-1 py-3 rounded-full font-semibold text-sm border border-beige-300" style="background:#E8DBC4;color:#6B5744">Skip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Availability -->
+    <div id="step-availability" class="step">
+        <div class="p-5 fade-in">
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-lg grad-green">&#10003;</div>
+                <h2 class="text-lg font-bold text-brown-700">You're In!</h2>
+                <p class="text-sm text-brown-400 mt-1">Select when you're available</p>
+            </div>
+            <div class="bg-beige-50 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <button onclick="changeMonth(-1)" class="text-brown-600 font-bold text-lg px-2">&#8249;</button>
+                    <span class="font-semibold text-brown-700 text-sm" id="calendarMonth"></span>
+                    <button onclick="changeMonth(1)" class="text-brown-600 font-bold text-lg px-2">&#8250;</button>
+                </div>
+                <div class="grid grid-cols-7 gap-1" id="calendar"></div>
+                <p class="text-xs text-brown-400 mt-2 text-center" id="selectedCount">0 date(s) selected</p>
+            </div>
+            <div id="timeSlots" class="mb-4"></div>
+            <button onclick="submitAvailability()" class="grad-btn w-full py-3 rounded-full text-white font-semibold text-sm">Submit Availability</button>
+        </div>
+    </div>
+
+    <!-- Done (accept) -->
+    <div id="step-done" class="step">
+        <div class="p-8 text-center fade-in">
+            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold grad-green" id="done-icon">&#10003;</div>
+            <h1 class="text-2xl font-bold text-brown-700 mb-2" id="done-title">All Set!</h1>
+            <p class="text-brown-600 mb-6 text-sm" id="done-message">Your response and availability have been sent!</p>
+            <div class="space-y-3">
+                <a id="open-app-btn" href="#" class="block grad-btn py-3 rounded-full text-white font-semibold text-sm text-center no-underline">Open in MacroManage App</a>
+                <a href="/" class="block py-3 rounded-full font-semibold text-sm text-center border-2 border-beige-300 text-brown-600 no-underline">Open Website</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Declined -->
+    <div id="step-declined" class="step">
+        <div class="p-8 text-center fade-in">
+            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold grad-red">&#10005;</div>
+            <h1 class="text-2xl font-bold text-brown-700 mb-2">Response Recorded</h1>
+            <p class="text-brown-600 mb-6 text-sm" id="decline-msg">You've declined this event.</p>
+            <a href="/" class="block py-3 rounded-full font-semibold text-sm text-center border-2 border-beige-300 text-brown-600 no-underline">Open Website</a>
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div id="step-error" class="step">
+        <div class="p-8 text-center fade-in">
+            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold grad-red">!</div>
+            <h1 class="text-2xl font-bold text-brown-700 mb-2">Error</h1>
+            <p class="text-brown-600 mb-6 text-sm" id="error-msg">Something went wrong.</p>
+        </div>
+    </div>
+
+</div>
+
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const eventId = urlParams.get('event');
-        const email = urlParams.get('email');
-        const response = urlParams.get('response');
-        const eventTitle = urlParams.get('title') || 'Event';
+    // --- Respond Flow ---
+    var P = new URLSearchParams(window.location.search);
+    var eventId = P.get('event');
+    var invEmail = P.get('email');
+    var urlResp = P.get('response');
+    var evTitle = P.get('title') || 'Event';
+    var hostN = P.get('host') || '';
+    var evLoc = P.get('location') || '';
+    var evBudget = P.get('budget') || '';
+    var hostEmail = P.get('hostEmail') || '';
+    var API = window.location.origin;
+    var curUser = null;
+    var friendOk = false;
+    var selDates = [];
+    var dtSlots = {};
+    var cMonth = new Date().getMonth();
+    var cYear = new Date().getFullYear();
 
-        let eventData = { id: eventId, title: eventTitle };
-        let selectedDates = [];
-        let dateTimeSlots = {}; // { 'date': [{start: '', end: ''}, ...] }
-        let currentMonth = new Date().getMonth();
-        let currentYear = new Date().getFullYear();
+    function goStep(id) {
+        var all = document.querySelectorAll('.step');
+        for (var i=0;i<all.length;i++) all[i].classList.remove('active');
+        var el = document.getElementById('step-'+id);
+        if (el) el.classList.add('active');
+    }
+    function isMob() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
 
-        // Detect mobile device
-        function isMobile() {
-            return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    function deepLink(action, ex) {
+        var n = curUser ? curUser.name : (invEmail ? invEmail.split('@')[0] : '');
+        var u = 'macromanage://respond?eventId='+eventId+'&action='+action+'&name='+encodeURIComponent(n)+'&email='+encodeURIComponent(invEmail||'');
+        if (ex) { var k=Object.keys(ex); for(var i=0;i<k.length;i++) u+='&'+k[i]+'='+encodeURIComponent(typeof ex[k[i]]==='object'?JSON.stringify(ex[k[i]]):ex[k[i]]); }
+        return u;
+    }
+
+    function fillInfo() {
+        document.getElementById('event-title-display').textContent = evTitle;
+        if (hostN) {
+            document.getElementById('host-label').textContent = hostN + ' wants to hang out';
+            document.getElementById('host-name-span').textContent = hostN;
+            var ini = hostN.split(' ').map(function(w){return w[0]}).join('').toUpperCase().slice(0,2);
+            document.getElementById('host-avatar').textContent = ini;
         }
+        if (evLoc) { document.getElementById('event-loc-val').textContent=evLoc; document.getElementById('event-loc-block').classList.remove('hidden'); }
+        if (evBudget) { document.getElementById('event-budget-val').textContent='$'+evBudget+' per person'; document.getElementById('event-budget-block').classList.remove('hidden'); }
+    }
 
-        function buildDeepLink(action) {
-            const name = email ? email.split('@')[0] : '';
-            return `macromanage://respond?eventId=${eventId}&action=${action}&name=${encodeURIComponent(name)}`;
+    function showLogin() { document.getElementById('auth-signup').classList.add('hidden'); document.getElementById('auth-login').classList.remove('hidden'); }
+    function showSignup() { document.getElementById('auth-signup').classList.remove('hidden'); document.getElementById('auth-login').classList.add('hidden'); }
+    function authErr(m) { var e=document.getElementById('auth-error'); e.textContent=m; e.classList.remove('hidden'); setTimeout(function(){e.classList.add('hidden')},4000); }
+
+    async function checkUser(em) {
+        try {
+            var r = await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:'__check__'})});
+            var d = await r.json();
+            return d.message==='Incorrect password' || d.success;
+        } catch(e) { return false; }
+    }
+
+    async function doSignup() {
+        var nm=document.getElementById('signup-name').value.trim();
+        var pw=document.getElementById('signup-password').value;
+        if(!nm){authErr('Please enter your name');return;}
+        if(pw.length<4){authErr('Password must be at least 4 characters');return;}
+        try {
+            var r=await fetch(API+'/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:invEmail,password:pw,name:nm})});
+            var d=await r.json();
+            if(d.success){curUser=d.user;afterAuth();}else{authErr(d.message||'Sign up failed');}
+        }catch(e){authErr('Network error');}
+    }
+
+    async function doLogin() {
+        var pw=document.getElementById('login-password').value;
+        if(!pw){authErr('Enter your password');return;}
+        try {
+            var r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:invEmail,password:pw})});
+            var d=await r.json();
+            if(d.success){curUser=d.user;afterAuth();}else{authErr(d.message||'Login failed');}
+        }catch(e){authErr('Network error');}
+    }
+
+    function afterAuth() {
+        fillInfo();
+        if(urlResp==='decline'){doDecline();}
+        else if(urlResp==='accept'){respondAccept();}
+        else{goStep('respond');}
+    }
+
+    function respondAccept() { goStep('friend'); }
+
+    function respondDecline() { doDecline(); }
+
+    async function doDecline() {
+        goStep('loading');
+        var nm = curUser?curUser.name:(invEmail?invEmail.split('@')[0]:'Someone');
+        try { await fetch(API+'/api/notify-host',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_id:eventId,email:invEmail,response:'declined',name:nm})}); }catch(e){}
+        document.getElementById('decline-msg').textContent='You declined "'+evTitle+'". The host has been notified and you have been removed from the event.';
+        goStep('declined');
+        if(isMob()){setTimeout(function(){window.location.href=deepLink('decline');},800);}
+    }
+
+    function acceptFriend() { friendOk=true; goStep('availability'); renderCal(); }
+    function skipFriend() { friendOk=false; goStep('availability'); renderCal(); }
+
+    // --- Calendar ---
+    var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var DN=['S','M','T','W','T','F','S'];
+    var MNS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var DNS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    function renderCal() {
+        document.getElementById('calendarMonth').textContent=MN[cMonth]+' '+cYear;
+        var fd=new Date(cYear,cMonth,1).getDay();
+        var dim=new Date(cYear,cMonth+1,0).getDate();
+        var h=DN.map(function(d){return '<div class="text-center text-xs font-semibold text-brown-400 py-1">'+d+'</div>'}).join('');
+        for(var i=0;i<fd;i++) h+='<div></div>';
+        var td=new Date();td.setHours(0,0,0,0);
+        for(var day=1;day<=dim;day++){
+            var ds=cYear+'-'+String(cMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+            var past=new Date(cYear,cMonth,day)<td;
+            var sel=selDates.indexOf(ds)!==-1;
+            var cls=past?'text-beige-300 cursor-not-allowed':sel?'bg-brown-500 text-white font-semibold cursor-pointer':'bg-beige-200 text-brown-600 cursor-pointer hover:bg-beige-300';
+            h+='<div onclick="'+(past?'':'tglDate(\''+ds+'\')')+'" class="'+cls+' text-center py-2 rounded-lg text-sm transition-all">'+day+'</div>';
         }
+        document.getElementById('calendar').innerHTML=h;
+        updSlots();
+    }
+    function changeMonth(d){cMonth+=d;if(cMonth>11){cMonth=0;cYear++;}else if(cMonth<0){cMonth=11;cYear--;}renderCal();}
 
-        function tryOpenApp(action) {
-            const deepLink = buildDeepLink(action);
-            window.location.href = deepLink;
-        }
+    function tglDate(ds){
+        var idx=selDates.indexOf(ds);
+        if(idx!==-1){selDates.splice(idx,1);delete dtSlots[ds];}
+        else{selDates.push(ds);selDates.sort();if(!dtSlots[ds])dtSlots[ds]=[{start:'',end:''}];}
+        renderCal();
+    }
 
-        // Auto-redirect to app on page load
-        if (eventId && response) {
-            const action = response === 'accept' ? 'accept' : 'decline';
-            setTimeout(() => { tryOpenApp(action); }, 300);
-        }
-
-        async function processResponse() {
-            if (!eventId || !email || !response) {
-                showError('Missing required parameters. Please use the link from your invitation email.');
-                return;
+    function updSlots(){
+        var c=document.getElementById('timeSlots');
+        document.getElementById('selectedCount').textContent=selDates.length+' date(s) selected';
+        if(!selDates.length){c.innerHTML='<p class="text-sm text-brown-400 text-center">Select dates above</p>';return;}
+        var h='<div class="border-t border-beige-200 pt-3"><p class="text-sm font-semibold text-brown-700 mb-3">Set your availability:</p>';
+        for(var i=0;i<selDates.length;i++){
+            var d=selDates[i]; var slots=dtSlots[d]||[{start:'',end:''}];
+            var dObj=new Date(d+'T12:00:00');
+            var lbl=DNS[dObj.getDay()]+', '+MNS[dObj.getMonth()]+' '+dObj.getDate();
+            h+='<div class="mb-3 bg-beige-50 rounded-xl p-3"><div class="flex justify-between items-center mb-2"><span class="text-sm font-semibold text-brown-700">'+lbl+'</span>';
+            h+='<button onclick="addSlot(\''+d+'\')" class="px-2 py-1 text-xs grad-btn text-white rounded">+ Time</button></div>';
+            for(var j=0;j<slots.length;j++){
+                h+='<div class="flex items-center gap-2 mb-2">';
+                h+='<input type="time" value="'+slots[j].start+'" onchange="setSlot(\''+d+'\','+j+',\'start\',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">';
+                h+='<span class="text-brown-400 text-xs">to</span>';
+                h+='<input type="time" value="'+slots[j].end+'" onchange="setSlot(\''+d+'\','+j+',\'end\',this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">';
+                if(slots.length>1) h+='<button onclick="rmSlot(\''+d+'\','+j+')" class="px-2 py-1 text-xs bg-red-400 text-white rounded">x</button>';
+                h+='</div>';
             }
+            h+='</div>';
+        }
+        h+='</div>';
+        c.innerHTML=h;
+    }
 
-            const isAccept = response === 'accept';
-            const action = isAccept ? 'accept' : 'decline';
+    function setSlot(d,i,f,v){if(!dtSlots[d])dtSlots[d]=[{start:'',end:''}];dtSlots[d][i][f]=v;}
+    function addSlot(d){if(!dtSlots[d])dtSlots[d]=[];dtSlots[d].push({start:'',end:''});updSlots();}
+    function rmSlot(d,i){if(dtSlots[d]&&dtSlots[d].length>1){dtSlots[d].splice(i,1);updSlots();}}
 
-            // Set deep link button for manual tap
-            const btn = document.getElementById('deepLinkBtn');
-            if (btn) {
-                btn.href = '#';
-                btn.onclick = function(e) { e.preventDefault(); tryOpenApp(action); };
-            }
+    async function submitAvailability(){
+        if(!selDates.length){alert('Please select at least one date');return;}
+        goStep('loading');
+        var nm=curUser?curUser.name:(invEmail?invEmail.split('@')[0]:'Someone');
+        try{
+            await fetch(API+'/api/notify-host',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                event_id:eventId,email:invEmail,response:'accepted',name:nm,
+                availability:dtSlots,friend_accepted:friendOk
+            })});
+        }catch(e){}
+        // Set deep link
+        var dl=deepLink('accept',{availability:dtSlots,friend:friendOk?'yes':'no',title:evTitle});
+        var btn=document.getElementById('open-app-btn');
+        if(btn){btn.href=dl;btn.onclick=function(e){e.preventDefault();window.location.href=dl;};}
+        document.getElementById('done-message').textContent='You accepted "'+evTitle+'" and your availability has been sent to '+( hostN||'the host')+'!';
+        goStep('done');
+        if(isMob()){setTimeout(function(){window.location.href=dl;},800);}
+    }
 
-            document.getElementById('statusIcon').textContent = isAccept ? '✓' : '✕';
-            document.getElementById('statusIcon').style.background = isAccept
-                ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
-            document.getElementById('statusTitle').textContent = isAccept ? '🎉 You\'re In!' : 'Response Recorded';
-            
-            if (isAccept) {
-                // Show the "Open in App" button immediately on mobile
-                if (isMobile()) {
-                    document.getElementById('statusMessage').innerHTML = `You accepted "<strong>${eventTitle}</strong>"! Open the app to let the host know when you're free.`;
-                    document.getElementById('finalMessage').classList.remove('hidden');
-                } else {
-                    document.getElementById('statusMessage').textContent = `Great! You accepted "${eventTitle}". Set your availability below.`;
-                }
+    // --- Try to open native app on mobile ---
+    function tryNativeApp() {
+        var dl = 'macromanage://invite?eventId=' + encodeURIComponent(eventId) +
+            '&email=' + encodeURIComponent(invEmail) +
+            '&title=' + encodeURIComponent(evTitle) +
+            '&host=' + encodeURIComponent(hostN) +
+            '&hostEmail=' + encodeURIComponent(hostEmail) +
+            '&location=' + encodeURIComponent(evLoc) +
+            '&budget=' + encodeURIComponent(evBudget) +
+            '&response=' + encodeURIComponent(urlResp || '');
+        window.location.href = dl;
+    }
 
-                // Notify host via API (best-effort)
-                try {
-                    await fetch(`${window.location.origin}/api/notify-host`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ event_id: eventId, email: email, response: 'accepted' })
-                    });
-                } catch (e) {}
-
-                // Show the availability form (desktop immediately, mobile after delay as fallback)
-                setTimeout(() => {
-                    document.getElementById('availabilityForm').classList.remove('hidden');
-                    renderCalendar();
-                }, isMobile() ? 1500 : 400);
-            } else {
-                document.getElementById('statusMessage').textContent = `You declined "${eventTitle}". The host has been notified.`;
-                setTimeout(() => {
-                    document.getElementById('finalMessage').classList.remove('hidden');
-                }, 1200);
-                
-                // Notify host of decline via API
-                try {
-                    await fetch(`${window.location.origin}/api/notify-host`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ event_id: eventId, email: email, response: 'declined' })
-                    });
-                } catch (e) {}
-                    
-                // Store in localStorage
-                try {
-                    const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
-                    notifications.push({
-                        id: Date.now().toString(),
-                        type: 'rsvp_declined',
-                        message: `${email} declined your invitation to "${eventTitle}".`,
-                        eventId: eventId,
-                        timestamp: new Date().toISOString(),
-                        read: false
-                    });
-                    localStorage.setItem('notifications', JSON.stringify(notifications));
-                } catch (e) {}
-            }
+    // --- Init ---
+    async function init(){
+        if(!eventId||!invEmail){
+            document.getElementById('error-msg').textContent='Missing event info. Please use the link from your invitation email.';
+            goStep('error'); return;
         }
 
-        function renderCalendar() {
-            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-            
-            document.getElementById('calendarMonth').textContent = months[currentMonth] + ' ' + currentYear;
-            
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            
-            let html = dayNames.map(d => `<div class="text-center text-xs font-semibold text-brown-400 py-1">${d}</div>`).join('');
-            
-            for (let i = 0; i < firstDay; i++) {
-                html += '<div></div>';
-            }
-            
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(currentYear, currentMonth, day);
-                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isPast = date < today;
-                const isSelected = selectedDates.includes(dateStr);
-                
-                const classes = isPast 
-                    ? 'text-beige-300 cursor-not-allowed'
-                    : isSelected
-                    ? 'bg-brown-500 text-white font-semibold cursor-pointer hover:bg-brown-600'
-                    : 'bg-beige-200 text-brown-600 cursor-pointer hover:bg-beige-300';
-                
-                html += `<div onclick="${isPast ? '' : `toggleDate('${dateStr}')`}" class="${classes} text-center py-2 rounded-lg text-sm transition-all">${day}</div>`;
-            }
-            
-            document.getElementById('calendar').innerHTML = html;
-            updateTimeSlotsDisplay();
+        // On mobile, try to open the app first; fall back to web after 1.5s
+        if (isMob()) {
+            tryNativeApp();
+            await new Promise(function(r){ setTimeout(r, 1500); });
+            // If we're still here, the app didn't open — continue with web flow
         }
 
-        function changeMonth(delta) {
-            currentMonth += delta;
-            if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
-            } else if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
-            }
-            renderCalendar();
+        fillInfo();
+        document.getElementById('signup-email').value=invEmail;
+        document.getElementById('login-email').value=invEmail;
+        var exists=await checkUser(invEmail);
+        if(!exists){goStep('auth');}
+        else if(urlResp==='accept'){
+            curUser={name:invEmail.split('@')[0],email:invEmail};
+            respondAccept();
+        }else if(urlResp==='decline'){
+            curUser={name:invEmail.split('@')[0],email:invEmail};
+            doDecline();
+        }else{
+            curUser={name:invEmail.split('@')[0],email:invEmail};
+            goStep('respond');
         }
+    }
 
-        function toggleDate(dateStr) {
-            if (selectedDates.includes(dateStr)) {
-                selectedDates = selectedDates.filter(d => d !== dateStr);
-                delete dateTimeSlots[dateStr];
-            } else {
-                selectedDates.push(dateStr);
-                selectedDates.sort();
-                if (!dateTimeSlots[dateStr]) {
-                    dateTimeSlots[dateStr] = [{ start: '', end: '' }];
-                }
-            }
-            renderCalendar();
-        }
-
-        function updateTimeSlotsDisplay() {
-            const container = document.getElementById('timeSlots');
-            const count = document.getElementById('selectedCount');
-            count.textContent = `${selectedDates.length} date(s) selected`;
-            
-            if (selectedDates.length === 0) {
-                container.innerHTML = '<p class="text-sm text-brown-400 text-center">Select dates above to set time slots</p>';
-                return;
-            }
-            
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            
-            container.innerHTML = '<div class="border-t border-beige-200 pt-3"><p class="text-sm font-semibold text-brown-700 mb-3">⏰ Set your availability for each date:</p>' +
-                selectedDates.map(d => {
-                    const slots = dateTimeSlots[d] || [{ start: '', end: '' }];
-                    const dateObj = new Date(d + 'T12:00:00');
-                    const label = dayNames[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + dateObj.getDate();
-                    return `<div class="mb-4 bg-beige-50 rounded-xl p-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-sm font-semibold text-brown-700">${label}</span>
-                            <button onclick="addTimeSlot('${d}')" class="px-2 py-1 text-xs bg-brown-500 text-white rounded hover:bg-brown-600">+ Add Time</button>
-                        </div>
-                        ${slots.map((slot, idx) => `
-                            <div class="flex items-center gap-2 mb-2">
-                                <input type="time" value="${slot.start}" onchange="updateTimeSlot('${d}', ${idx}, 'start', this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
-                                <span class="text-brown-400 text-xs font-medium">to</span>
-                                <input type="time" value="${slot.end}" onchange="updateTimeSlot('${d}', ${idx}, 'end', this.value)" class="border border-beige-300 rounded-lg px-2 py-1 text-sm text-brown-700 bg-white flex-1">
-                                ${slots.length > 1 ? `<button onclick="removeTimeSlot('${d}', ${idx})" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">×</button>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>`;
-                }).join('') + '</div>';
-        }
-
-        function updateTimeSlot(date, slotIdx, field, value) {
-            if (!dateTimeSlots[date]) dateTimeSlots[date] = [{ start: '', end: '' }];
-            dateTimeSlots[date][slotIdx][field] = value;
-        }
-
-        function addTimeSlot(date) {
-            if (!dateTimeSlots[date]) dateTimeSlots[date] = [];
-            dateTimeSlots[date].push({ start: '', end: '' });
-            updateTimeSlotsDisplay();
-        }
-
-        function removeTimeSlot(date, slotIdx) {
-            if (dateTimeSlots[date] && dateTimeSlots[date].length > 1) {
-                dateTimeSlots[date].splice(slotIdx, 1);
-                updateTimeSlotsDisplay();
-            }
-        }
-
-        async function submitAvailability() {
-            if (selectedDates.length === 0) {
-                alert('Please select at least one date!');
-                return;
-            }
-            
-            // Notify host via API (best-effort)
-            try {
-                await fetch(`${window.location.origin}/api/notify-host`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        event_id: eventId, 
-                        email: email, 
-                        response: 'accepted',
-                        availability: dateTimeSlots
-                    })
-                });
-            } catch (e) {
-                console.log('API notify skipped:', e.message);
-            }
-            
-            // Store in localStorage (for same-device / website testing)
-            try {
-                const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
-                notifications.push({
-                    id: Date.now().toString(),
-                    type: 'rsvp_accepted',
-                    message: `${email} accepted your invitation to "${eventTitle}"!`,
-                    eventId: eventId,
-                    timestamp: new Date().toISOString(),
-                    read: false
-                });
-                localStorage.setItem('notifications', JSON.stringify(notifications));
-
-                const responses = JSON.parse(localStorage.getItem('event_responses') || '[]');
-                responses.push({
-                    event_id: eventId,
-                    email: email,
-                    response: 'accepted',
-                    availability: dateTimeSlots
-                });
-                localStorage.setItem('event_responses', JSON.stringify(responses));
-            } catch (e) {}
-            
-            // Show success
-            document.getElementById('availabilityForm').classList.add('hidden');
-            document.getElementById('statusTitle').textContent = '✅ All Set!';
-            document.getElementById('statusMessage').textContent = 'Your availability has been sent to the host!';
-            document.getElementById('finalMessage').classList.remove('hidden');
-
-            // On mobile, redirect to the app
-            if (isMobile()) {
-                document.getElementById('statusMessage').textContent = 'Opening MacroManage app...';
-                setTimeout(() => { window.location.href = buildDeepLink('accept'); }, 600);
-            }
-        }
-
-        function showError(msg) {
-            document.getElementById('statusIcon').textContent = '!';
-            document.getElementById('statusIcon').style.background = 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
-            document.getElementById('statusTitle').textContent = 'Error';
-            document.getElementById('statusMessage').textContent = msg;
-        }
-
-        processResponse();
+    init();
     </script>
+
 </body>
 </html>

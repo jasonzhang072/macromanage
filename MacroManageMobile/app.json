@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "MacroManage",
+    "slug": "macromanage-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDF6E9"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "scheme": "macromanage",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.macromanage.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FDF6E9"
+      },
+      "package": "com.macromanage.app",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "macromanage" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
